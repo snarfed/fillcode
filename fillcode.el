@@ -1,4 +1,4 @@
-;; Fill code
+;; Fillcode
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005 Ryan Barrett <fillcode@ryanb.org>
 ;;
@@ -40,6 +40,14 @@
 ;;   (setq-default fillcode-mode t)
 ;;
 ;; M-x fillcode-mode toggles fillcode-mode on/off in the current buffer.
+;;
+;; TODO:
+;; - find the original open paren in a language-independent way
+;; - remove whitespace preceding a comma
+;; - option for preferring first arg on first line or on next line
+;; - fill things besides function calls, eg arithmetic expressions, string
+;;   constants (language specific, ick), java throws clauses
+;; - ooh...make a way to add language-specific filling rules
 
 (defun fillcode ()
   (interactive)
@@ -47,32 +55,36 @@
     (beginning-of-line)
     ; start at the first an open parenthesis
     (if (search-forward "(" (line-end-position) t)
-        (fillcode-recursive (match-beginning 0))) ; (current-column)
-    ()))
+        (fillcode-recursive)) ; (current-column)
+    ))
 
-(defun fillcode-recursive (openparen)
-  "openparen is the open parenthesis we're starting from."
-  (let ((openparen-column
-         (save-excursion (goto-char openparen) (current-column))))
-    ; if we hit a close parenthesis, we're done
-    (while (not (equal ")" (char-to-string (char-before))))
+(defun fillcode-recursive ()
+  (catch 'closeparen
+    (while t
       (let ((c (char-to-string (char-after))))
-        ; if we hit an open parenthesis, recurse
-        (if (equal c "(")
-            (fillcode-recursive (point)))
-        ; if we hit the end of the line, delete it
-        (if (eolp)
-            (progn (forward-char) (delete-indentation)))
-        ; if we hit a comma or close paren, and the next non-whitespace char is
-        ; past the fill column, insert a newline
+        (edebug)
+        ; if we hit a comma or close paren, and the next non-whitespace char
+        ; is past the fill column, fill! (ie insert a newline and indent)
         (if (or (equal c ",") (equal c ")"))
             (if (>= (current-column) fill-column)
-                (progn
-                  (search-backward "," openparen t)
-                  (forward-char)
-                  (newline 1)
-                  (indent-to openparen-column))))
-        (forward-char)
+                (save-excursion
+                  (skip-chars-backward "^,()")
+                  (if (not (equal ")" (char-to-string (char-before))))
+                      (newline-and-indent)))))
+        ; close parenthesis is our base case; return!
+        (if (equal c ")")
+            (throw 'closeparen t))
+        ; open parenthesis is our recursive step; recurse!
+        (if (equal c "(")
+            (progn (forward-char) (fillcode-recursive)))
+        ; normalize whitespace
+        (if (or (equal (char-to-string (char-before)) ",")
+                (string-match " \t" c))
+            (fixup-whitespace))
+        ; if we hit a newline, delete it, otherwise advance
+        (if (eolp)
+            (delete-indentation t)
+            (forward-char))
         ))))
 
 (global-set-key [(control f11)] 'fillcode)
