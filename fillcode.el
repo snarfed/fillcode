@@ -42,12 +42,53 @@
 ;; M-x fillcode-mode toggles fillcode-mode on/off in the current buffer.
 ;;
 ;; TODO:
+;; - make it a proper minor mode
 ;; - find the original open paren in a language-independent way
 ;; - remove whitespace preceding a comma
 ;; - option for preferring first arg on first line or on next line
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
 ;; - ooh...make a way to add language-specific filling rules
+
+(define-minor-mode fillcode-mode
+  "Toggle fillcode mode.
+With no argument, this command toggles the mode. Non-null prefix argument
+turns on the mode. Null prefix argument turns off the mode.
+
+Fillcode mode can intelligently fill some parts of source code, like function
+calls and definitions, in many languages.
+"
+ ;; initial value
+ nil
+ ;; mode line indicator
+ " Fillcode"
+ ;; keymap
+ nil
+ ;; run these when fillcode-mode is called
+ (set-variable 'fillcode-wrapped-fill-function fill-paragraph-function)
+ (if fillcode-mode
+      (set-variable 'fill-paragraph-function 'fillcode-fill-paragraph)
+      (if (eq fill-paragraph-function 'fillcode-fill-paragraph)
+        (set-variable 'fill-paragraph-function fillcode-wrapped-fill-function)))
+ )
+
+(defvar fillcode-wrapped-fill-function nil
+  "The primary fill function. Fillcode only runs if this returns nil.")
+
+(defun fillcode-fill-paragraph (&optional arg)
+  "Fill code at point if fillcode-wrapped-fill-function returns nil.
+
+Intended to be set as fill-paragraph-function. If
+fillcode-wrapped-fill-function is nil, fills code. If it's non-nil, runs it
+first, and only fills code if it returns nil."
+  (if fillcode-wrapped-fill-function
+      (let ((ret (fillcode-wrapped-fill-function arg)))
+        (if ret
+            ret
+            (fillcode)))
+      (fillcode)))
+
+
 
 (defun fillcode ()
   (interactive)
