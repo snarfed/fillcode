@@ -27,16 +27,16 @@
 ;; function calls and definitions, if the language mode's fill function
 ;; returns nil.
 ;;
-;; M-x fillcode-mode toggles fillcode-mode on/off in the current buffer.
+;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; TODO:
-;; - add beginning of statement fns for more languages
-;; - remove whitespace preceding a comma
-;; - remove whitespace after an open paren
+;; - if first arg doesn't pass fill-column, but next one does, newline first
+;; - if a nested call was filled to more than one line, newline-and-indent
+;; after the call's close paren and comma. ideally before call/open paren too
+;; - add beginning-of-statement fns for more languages
 ;; - option for preferring first arg on first line or on next line
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
-;; - ooh...make a way to add language-specific filling rules
 ;; - make it work in c-mode-common (since M-q gets set to c-fill-paragraph)
 
 (require 'cl)  ; for the case macro
@@ -75,12 +75,14 @@ first, and only fills code if it returns nil.
 
 Intended to be set as fill-paragraph-function.
 "
-  (if fillcode-wrapped-fill-function
-      (let ((ret (fillcode-wrapped-fill-function arg)))
-        (if ret
-            ret
+  (save-excursion
+    (if fillcode-wrapped-fill-function
+        (let ((ret (fillcode-wrapped-fill-function arg)))
+          (if ret
+              ret
             (fillcode)))
-      (fillcode)))
+      (fillcode))
+    ))
 
 
 
@@ -93,36 +95,42 @@ Without arg, starts at the beginning of the statement. With arg, fills
 recursively.
 "
   (interactive)
-  (save-excursion
-    (if (not arg)
-        (if (not (fillcode-beginning-of-statement))
-            (error "No function found to fill")))
-    (catch 'closeparen
-      (while t
-        (let ((c (char-to-string (char-after))))
-          ; if we hit a comma or close paren, and the next non-whitespace char
-          ; is past the fill column, fill! (ie insert a newline and indent)
-          (if (or (equal c ",") (equal c ")"))
-              (if (>= (current-column) fill-column)
-                  (save-excursion
-                    (skip-chars-backward "^,()")
-                    (if (not (equal ")" (char-to-string (char-before))))
-                        (newline-and-indent)))))
-          ; close parenthesis is our base case; return!
-          (if (equal c ")")
-              (throw 'closeparen t))
-          ; open parenthesis is our recursive step; recurse!
-          (if (equal c "(")
-              (progn (forward-char) (fillcode t)))
-          ; normalize whitespace
-          (if (or (equal (char-to-string (char-before)) ",")
-                  (string-match " \t" c))
-              (fixup-whitespace))
-          ; if we hit a newline, delete it, otherwise advance
-          (if (eolp)
-              (delete-indentation t)
-            (forward-char))
-          )))))
+  (if (not arg)
+      (if (not (fillcode-beginning-of-statement))
+          (error "No function found to fill")))
+  (catch 'closeparen
+    (while t
+      (let ((c (char-to-string (char-after))))
+;;         (edebug)
+        ; normalize whitespace
+        (if (equal "," c)
+            (delete-horizontal-space))
+        (if (or (equal (char-to-string (char-before)) ",")
+                (string-match "[ \t]" c))
+            (fixup-whitespace))
+        ; if we hit a comma or close paren, and the next non-whitespace char
+        ; is past the fill column, fill! (ie insert a newline and indent)
+        (if (or (equal c ",") (equal c ")"))
+            (if (>= (current-column) fill-column)
+                (save-excursion
+                  (skip-chars-backward "^,()")
+;;                   (if (not (equal ")" (char-to-string (char-before))))
+                  (newline-and-indent))))
+        ; at a close paren, if the function call was filled at all, ie the
+        ; close paren is on a lower line than the open paren, newline.
+;;         (if (and (equal c ")"))
+
+        ; close parenthesis is our base case; return!
+        (if (equal c ")")
+            (throw 'closeparen t))
+        ; open parenthesis is our recursive step; recurse!
+        (if (equal c "(")
+            (progn (forward-char) (fillcode t)))
+        ; if we hit a newline, delete it, otherwise advance
+        (if (eolp)
+            (delete-indentation t)
+          (forward-char))
+        ))))
 
 
 (defun fillcode-beginning-of-statement ()
@@ -141,6 +149,8 @@ occasionally fails badly, e.g. in perl-mode in some cases.
     ('perl-mode
       (c-beginning-of-statement))
     (otherwise
-      (progn (beginning-of-line)  ; default to the first open paren
-             (search-forward "(" (line-end-position))))
-    ))
+      (beginning-of-line)))  ; default
+
+  (search-forward "(" (line-end-position))
+  )
+
