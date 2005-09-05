@@ -19,7 +19,7 @@
 ;; LCD Archive Entry: 
 ;; fillcode|Ryan Barrett|fillcode@ryanb.org| 
 ;; Minor mode to fill function calls and other parts of source code|
-;; 7-August-2005|0.1|~/packages/fillcode.el| 
+;; 7-September-2005|0.1|~/packages/fillcode.el| 
 
 ;; This minor mode enhance the fill functions when in source code major modes,
 ;; including c-mode, java-mode, and python-mode. Specifically, it provides a
@@ -41,6 +41,8 @@
 
 (require 'cl)  ; for the case macro
 
+(defvar fillcode-version "0.1")
+
 (define-minor-mode fillcode-mode
   "Toggle fillcode mode.
 With no argument, this command toggles the mode. Non-null prefix argument
@@ -48,6 +50,8 @@ turns on the mode. Null prefix argument turns off the mode.
 
 Fillcode mode can intelligently fill some parts of source code, like function
 calls and definitions, in many languages.
+
+For more information, see http://snarfed.org/space/fillcode
 "
  ;; initial value
  nil
@@ -102,34 +106,34 @@ recursively.
     (while t
       (let ((c (char-to-string (char-after))))
 ;;         (edebug)
-        ; normalize whitespace
-        (if (equal "," c)
-            (delete-horizontal-space))
-        (if (or (equal (char-to-string (char-before)) ",")
-                (string-match "[ \t]" c))
-            (fixup-whitespace))
-        ; if we hit a comma or close paren, and the next non-whitespace char
-        ; is past the fill column, fill! (ie insert a newline and indent)
-        (if (or (equal c ",") (equal c ")"))
-            (if (>= (current-column) fill-column)
-                (save-excursion
-                  (skip-chars-backward "^,()")
-;;                   (if (not (equal ")" (char-to-string (char-before))))
-                  (newline-and-indent))))
-        ; at a close paren, if the function call was filled at all, ie the
-        ; close paren is on a lower line than the open paren, newline.
-;;         (if (and (equal c ")"))
-
-        ; close parenthesis is our base case; return!
-        (if (equal c ")")
-            (throw 'closeparen t))
+        ; normalize whitespace (no spaces before commas, one after)au
+        (if (string-match "[(,]" c)
+            (delete-horizontal-space)
+          (if (string-match "[ \t)]" c)
+              (fixup-whitespace)))
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
             (progn (forward-char) (fillcode t)))
-        ; if we hit a newline, delete it, otherwise advance
+        ; if we're past the fill column, fill!
+        (if (and (> (current-column) fill-column) (not (eolp)))
+            (progn
+              (skip-chars-backward "^(),")
+;;              (if (not (equal ")" (char-to-string (char-before))))
+              (newline-and-indent)))
+        ; at a close paren, if the function call was filled at all, ie the
+        ; close paren is on a lower line than the open paren, newline.
+;;         (if (and (equal c ")"))
+;; NEXT TODO HERE
+        ; close parenthesis is our base case; return!
+        (if (equal c ")")
+            (throw 'closeparen t))
+        ; advance to next non-whitespace char, deleting newlines along the way
+        (forward-char)
+        (skip-chars-forward " \t")
         (if (eolp)
-            (delete-indentation t)
-          (forward-char))
+            (progn
+              (delete-indentation t)
+              (forward-char)))
         ))))
 
 
