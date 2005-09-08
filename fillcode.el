@@ -30,9 +30,9 @@
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; TODO:
+;; - debug whitespace collapsing and make it more robust
+;; - blank lines aren't handled right
 ;; - if first arg doesn't pass fill-column, but next one does, newline first
-;; - if a nested call was filled to more than one line, newline-and-indent
-;; after the call's close paren and comma. ideally before call/open paren too
 ;; - add beginning-of-statement fns for more languages
 ;; - option for preferring first arg on first line or on next line
 ;; - fill things besides function calls, eg arithmetic expressions, string
@@ -102,39 +102,52 @@ recursively.
   (if (not arg)
       (if (not (fillcode-beginning-of-statement))
           (error "No function found to fill")))
+  (collapse-whitespace-forward)
+
+  ; the main loop. the main idea is, advance through the statement,
+  ; normalizing whitespace and deleting newlines along the way. the main loop
+  ; should run once once and only once for each printable character. when we
+  ; hit the fill-column, fill intelligently.
   (catch 'closeparen
     (while t
       (let ((c (char-to-string (char-after))))
-;;         (edebug)
-        ; normalize whitespace (no spaces before commas, one after)au
-        (if (string-match "[(,]" c)
-            (delete-horizontal-space)
-          (if (string-match "[ \t)]" c)
-              (fixup-whitespace)))
+        (edebug)
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
-            (progn (forward-char) (fillcode t)))
+;;             (progn (forward-char)
+            (fillcode t))
         ; if we're past the fill column, fill!
-        (if (and (> (current-column) fill-column) (not (eolp)))
-            (progn
+;;         (if (and (> (current-column) fill-column) (not (eolp)))
+        (if (>= (current-column) fill-column) 
+           (progn
               (skip-chars-backward "^(),")
 ;;              (if (not (equal ")" (char-to-string (char-before))))
               (newline-and-indent)))
-        ; at a close paren, if the function call was filled at all, ie the
-        ; close paren is on a lower line than the open paren, newline.
-;;         (if (and (equal c ")"))
-;; NEXT TODO HERE
         ; close parenthesis is our base case; return!
         (if (equal c ")")
             (throw 'closeparen t))
-        ; advance to next non-whitespace char, deleting newlines along the way
-        (forward-char)
-        (skip-chars-forward " \t")
-        (if (eolp)
+        ; next!
+        (collapse-whitespace-forward)
+        )))
+
+  ; if this is a nested function call, and we filled, newline after next comma
+  (if (and arg
+           (save-excursion
+             (skip-chars-backward "^(" (line-beginning-position))
+             (eq (point) (line-beginning-position))))
+      (progn
+        (forward-char)   ; move past close paren
+        (collapse-whitespace-forward)
+        (if (equal "," (char-to-string (char-after)))
             (progn
-              (delete-indentation t)
-              (forward-char)))
-        ))))
+              (delete-horizontal-space)
+              (forward-char)  ; move past comma
+              (collapse-whitespace-forward)
+              (newline-and-indent)))))
+
+  ; return t to indicate that we filled something
+  t
+)
 
 
 (defun fillcode-beginning-of-statement ()
@@ -158,3 +171,33 @@ occasionally fails badly, e.g. in perl-mode in some cases.
   (search-forward "(" (line-end-position))
   )
 
+
+(defun collapse-whitespace-forward ()
+  "Delete newlines and normalize whitespace (no spaces before commas or open
+parens or after close parens, one space after commas). Then advance point to
+next non-whitespace char.
+"
+  (interactive)
+
+  ; if we're on whitespace, delete and normalize it...
+  (if (string-match "[(), \t\n]" (char-to-string (char-after)))
+      (progn
+        (delete-horizontal-space)
+
+        ; if newline, delete and recurse
+        (if (eolp)
+            (progn
+              (delete-indentation t)
+              (collapse-whitespace-forward))
+          (progn
+            (if (not (string-match "[(), \n]" (char-to-string (char-after))))
+                (fixup-whitespace))
+            (if (string-match "[( ,]" (char-to-string (char-after)))
+                (forward-char)))))
+
+    ; ...otherwise, base case: advance one char
+    (forward-char))
+
+  ; advance if necessary
+;;   (if (equal " " (char-to-string (char-after)))
+  )
