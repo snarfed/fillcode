@@ -38,6 +38,7 @@
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
 ;; - make it work in c-mode-common (since M-q gets set to c-fill-paragraph)
+;; - make it compatible with filladapt-mode
 
 (require 'cl)  ; for the case macro
 
@@ -59,19 +60,23 @@ For more information, see http://snarfed.org/space/fillcode
  " Fillcode"
  ;; keymap
  nil
- ;; these forms run when fillcode-mode is enabled or disabled
+ ;; these forms run when fillcode-mode is enabled or disabled. the
+ ;; fillcode-mode var is set before these forms run.
  (make-local-variable              ;; The primary fill function. Fillcode only
   'fillcode-wrapped-fill-function) ;; runs if this returns nil.
  (make-local-variable 'fill-paragraph-function)
  (if fillcode-mode
-     (setq fillcode-wrapped-fill-function fill-paragraph-function
-           fill-paragraph-function 'fillcode-fill-paragraph)
+     (progn 
+       (if (not (eq fill-paragraph-function 'fillcode-fill-paragraph))
+           (setq fillcode-wrapped-fill-function fill-paragraph-function)
+         (setq fillcode-wrapped-fill-function nil))
+       (setq fill-paragraph-function 'fillcode-fill-paragraph))
    (if (eq fill-paragraph-function 'fillcode-fill-paragraph)
        (setq fill-paragraph-function fillcode-wrapped-fill-function)))
  )
 
 
-(defun fillcode-fill-paragraph (&optional arg)
+(defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
   "Fill code at point if fillcode-wrapped-fill-function returns nil.
 
 If fillcode-wrapped-fill-function is nil, fills code. If it's non-nil, runs it
@@ -81,7 +86,7 @@ Intended to be set as fill-paragraph-function.
 "
   (save-excursion
     (if fillcode-wrapped-fill-function
-        (let ((ret (fillcode-wrapped-fill-function arg)))
+        (let ((ret (apply fillcode-wrapped-fill-function arg)))
           (if ret
               ret
             (fillcode)))
@@ -109,9 +114,9 @@ recursively.
   ; should run once once and only once for each printable character. when we
   ; hit the fill-column, fill intelligently.
   (catch 'closeparen
-    (while t
+    (while (char-after)
       (let ((c (char-to-string (char-after))))
-        (edebug)
+;;         (edebug)
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
 ;;             (progn (forward-char)
@@ -168,7 +173,7 @@ occasionally fails badly, e.g. in perl-mode in some cases.
     (otherwise
       (beginning-of-line)))  ; default
 
-  (search-forward "(" (line-end-position))
+  (search-forward "(" (line-end-position) t)
   )
 
 
@@ -195,9 +200,12 @@ next non-whitespace char.
             (if (string-match "[( ,]" (char-to-string (char-after)))
                 (forward-char)))))
 
-    ; ...otherwise, base case: advance one char
-    (forward-char))
+    ; else if we're after a comma, normalize to one space
+    (if (equal "," (char-to-string (char-before)))
+        (fixup-whitespace)
 
-  ; advance if necessary
-;;   (if (equal " " (char-to-string (char-after)))
-  )
+      ; ...otherwise, base case: advance one char
+      (forward-char)))
+    )
+
+(provide 'fillcode)
