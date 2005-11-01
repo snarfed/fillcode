@@ -37,26 +37,35 @@
     ))
 
 
-; test harness. runs fillcode on the given input in a temp buffer (with the
-; desired fill column, if provided), then compares the results to the expected
-; output.
+; test harness. runs fillcode on the given input in a temp buffer in python
+; mode - with the desired fill column, if provided - then compares the results
+; to the expected output.
+;
+; if the first character of the expected output is a newline, it's removed.
 (defun fillcode-test (input expected &optional desired-fill-column)
-  (with-temp-buffer
-    (fillcode-mode)
-    (insert-string input)
-    (beginning-of-buffer)
-    (if desired-fill-column
-        (setq fill-column desired-fill-column))
-    (fillcode)
-    (assert-equal expected (buffer-string)))
-  )
+  (let ((expected-trimmed
+         (if (eq ?\n (string-to-char expected))
+             (substring expected 1)
+           expected)))
+    (with-temp-buffer
+      (fundamental-mode)
+      (if (auto-fill-mode nil)  ; turn off auto-fill-mode so that the input
+          (auto-fill-mode nil)) ; string isn't automatically filled
+      (insert-string input)
+      (python-mode)             ; so that we know how to indent
+      (beginning-of-buffer)
+      (if desired-fill-column
+          (setq fill-column desired-fill-column))
+      (fillcode)
+      (assert-equal expected-trimmed (buffer-string)))
+  ))
 
 ; error handling test harness. runs fillcode on the given input in a temp
 ; buffer, and succeeds only if fillcode raises the error no-function-to-fill.
 (defun fillcode-test-error (input)
   (condition-case err
       (progn
-        (fillcode-test input "")
+         (fillcode-test input "")
         (fail "Expected error no-function-to-fill, but no error was raised"))
 
     (error (let ((msg (cadr err)))
@@ -110,6 +119,162 @@
   (fillcode-test "foo(\nbar\n,\nbaz\n)" "foo(bar, baz)")
   )
 
+(deftest blank-lines
+  (fillcode-test "foo(\n\nbar, baz)" "foo(bar, baz)")
+  (fillcode-test "foo(bar\n\n,baz)" "foo(bar, baz)")
+  (fillcode-test "foo(bar,\n\nbaz)" "foo(bar, baz)")
+  (fillcode-test "foo(\nbar, baz\n\n)" "foo(bar, baz)")
+
+  (fillcode-test "foo(\n\nbar, baz)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(bar\n\n,baz)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(bar,\n\nbaz)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(\nbar, baz\n\n)" "foo(bar,\n    baz)" 9)
+  )
+
 (deftest simple-fill
-  (fillcode-test "foo(bar, baz)" "foo(bar,\n    baz)" 10)
+  (fillcode-test "foo(bar, baz)" "
+foo(
+bar,
+baz)" 6)
+
+  (fillcode-test "foo(bar, baz)" "
+foo(bar,
+    baz)" 10)
+
+
+  ; a
+  (fillcode-test "foo(bar, baz, baj)" "
+foo(bar,
+    baz,
+    baj)" 10)
+
+  ; z
+  (fillcode-test "foo(bar, baz, baj)" "
+foo(bar,
+    baz,
+    baj)" 11)
+
+  ; ,
+  (fillcode-test "foo(bar, baz, baj)" "
+foo(bar,
+    baz,
+    baj)" 12)
+
+  ; [space]
+  (fillcode-test "foo(bar, baz, baj)" "
+foo(bar, baz,
+    baj)" 13)
+
+  ; b
+  (fillcode-test "foo(bar, baz, baj)" "
+foo(bar, baz,
+    baj)" 14)
+  )
+
+(deftest multiple-identifiers-between-commas
+  (fillcode-test "foo(bar baz, baj baf)" "
+foo(bar baz,
+    baj baf)" 18)
+
+  (fillcode-test "foo(bar baz baj, baf bat bap)" "
+foo(bar baz baj,
+    baf bat bap)" 22)
+  )
+
+(deftest nested-non-sticky
+  (setq fillcode-nested-calls-are-sticky nil)
+
+  (fillcode-test "foo(x(y, z))" "foo(x(y, z))")
+  (fillcode-test "foo( x ( y ,z ))" "foo(x(y, z))")
+  (fillcode-test "foo( x ( y,z ) ,a( b ,c ))" "foo(x(y, z), a(b, c))")
+
+  (fillcode-test "foo(barbar, baz(baj))" "
+foo(barbar,
+    baz(baj))" 13)
+
+  (fillcode-test "foo(barbar(baz))" "
+foo(barbar(
+    baz))" 12)
+
+  ; try with the fill column on different parts of the nested function call.
+  ; the full text is:  foo(barbarbar, baz(x), baf)
+  ;
+  ; z
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar,
+    baz(x), baf)" 17)
+
+  ; (
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar,
+    baz(x), baf)" 18)
+
+  ; x
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar, baz(
+    x), baf)" 19)
+
+  ; )
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar, baz(
+    x), baf)" 20)
+
+  ; ,
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar, baz(
+    x), baf)" 21)
+
+  ; [space]
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar, baz(x),
+    baf)" 22)
+
+  ; b
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar, baz(x),
+    baf)" 23)
+  )
+
+
+(deftest nested-sticky
+  (set-variable 'fillcode-nested-calls-are-sticky t)
+
+  (fillcode-test "foo(x(y, z))" "foo(x(y, z))")
+  (fillcode-test "foo( x ( y ,z ))" "foo(x(y, z))")
+  (fillcode-test "foo( x ( y,z ) ,a( b ,c ))" "foo(x(y, z), a(b, c))")
+
+  (fillcode-test "foo(barbar, baz(baj))" "
+foo(barbar,
+    baz(baj))" 13)
+
+  ; TODO: in many modes, when barbar is filled, it indents to the same place
+  ; (column 4). make this fail gracefully.
+;;   (fillcode-test "foo(barbar(baz))" "
+;; foo(barbar(
+;;     baz))" 12)
+
+  ; (
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar,
+    baz(x), baf)" 18)
+
+  ; x
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar,
+    baz(x), baf)" 19)
+
+  ; )
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar,
+    baz(x), baf)" 20)
+
+  ; ,
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar,
+    baz(x), baf)" 21)
+
+  ; [space]
+  (fillcode-test "foo(barbarbar, baz(x), baf)" "
+foo(barbarbar, baz(x),
+    baf)" 22)
   )

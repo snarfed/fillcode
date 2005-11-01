@@ -22,19 +22,20 @@
 ;; 7-September-2005|0.1|~/packages/fillcode.el| 
 
 ;; This minor mode enhance the fill functions when in source code major modes,
-;; including c-mode, java-mode, and python-mode. Specifically, it provides a
-;; new fill function that intelligently fills some parts of source code, like
+;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
+;; fill function that intelligently fills some parts of source code, like
 ;; function calls and definitions, if the language mode's fill function
-;; returns nil.
+;; doesn't already.
 ;;
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; TODO:
-;; - debug whitespace collapsing and make it more robust
-;; - blank lines aren't handled right
+;; - if fill-column falls on comma after close paren of nested call, we go back
+;;   inside the nested call to fill, but we don't think we're inside it in the
+;;   call stack. grr!
 ;; - if first arg doesn't pass fill-column, but next one does, newline first
+;;   (maybe option for preferring first arg on first line or on next line?)
 ;; - add beginning-of-statement fns for more languages
-;; - option for preferring first arg on first line or on next line
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
 ;; - make it work in c-mode-common (since M-q gets set to c-fill-paragraph)
@@ -75,6 +76,29 @@ For more information, see http://snarfed.org/space/fillcode
        (setq fill-paragraph-function fillcode-wrapped-fill-function)))
  )
 
+(defgroup fillcode nil
+  "Fill code"
+  :group 'fill)
+
+(defcustom fillcode-nested-calls-are-sticky nil
+  "If non-nil, fillcode-mode will not separate a nested function call from its
+first argument. For example, if this variable is non-nil, this:
+
+foo(bar, baz(baj))
+
+will fill to:
+
+foo(bar,
+    baz(baj))
+
+If this variable is nil, it will fill to:
+
+foo(bar, baz(
+    baj))
+"
+  :type 'boolean
+  :group 'fillcode)
+
 
 (defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
   "Fill code at point if fillcode-wrapped-fill-function returns nil.
@@ -109,25 +133,32 @@ recursively.
           (error "No function found to fill")))
   (collapse-whitespace-forward)
 
-  ; the main loop. the main idea is, advance through the statement,
-  ; normalizing whitespace and deleting newlines along the way. the main loop
-  ; should run once once and only once for each printable character. when we
-  ; hit the fill-column, fill intelligently.
+  ; the main loop. advances through the statement, normalizing whitespace and
+  ; deleting newlines along the way. the main loop should run once once and
+  ; only once for each printable character. when we hit the fill-column, fill
+  ; intelligently.
   (catch 'closeparen
     (while (char-after)
       (let ((c (char-to-string (char-after))))
 ;;         (edebug)
-        ; open parenthesis is our recursive step; recurse!
-        (if (equal c "(")
-;;             (progn (forward-char)
-            (fillcode t))
         ; if we're past the fill column, fill!
-;;         (if (and (> (current-column) fill-column) (not (eolp)))
         (if (>= (current-column) fill-column) 
            (progn
               (skip-chars-backward "^(),")
-;;              (if (not (equal ")" (char-to-string (char-before))))
-              (newline-and-indent)))
+              (if (string-match "[(),]" (char-to-string (char-after)))
+                  (re-search-backward "[^(),]"))
+               ; if sticky, don't fill the first arg of nested fn calls
+              (if (and fillcode-nested-calls-are-sticky
+                       arg (equal (char-to-string (char-before)) "("))
+                  (save-excursion
+                    (backward-char)
+                    (skip-chars-backward "^(),")
+                    (newline-and-indent)
+                    )
+                (newline-and-indent))))
+        ; open parenthesis is our recursive step; recurse!
+        (if (equal c "(")
+            (fillcode t))
         ; close parenthesis is our base case; return!
         (if (equal c ")")
             (throw 'closeparen t))
@@ -141,8 +172,7 @@ recursively.
              (skip-chars-backward "^(" (line-beginning-position))
              (eq (point) (line-beginning-position))))
       (progn
-        (forward-char)   ; move past close paren
-        (collapse-whitespace-forward)
+        (collapse-whitespace-forward)  ; move past close paren
         (if (equal "," (char-to-string (char-after)))
             (progn
               (delete-horizontal-space)
@@ -197,7 +227,7 @@ next non-whitespace char.
           (progn
             (if (not (string-match "[(), \n]" (char-to-string (char-after))))
                 (fixup-whitespace))
-            (if (string-match "[( ,]" (char-to-string (char-after)))
+            (if (string-match "[() ,]" (char-to-string (char-after)))
                 (forward-char)))))
 
     ; else if we're after a comma, normalize to one space
