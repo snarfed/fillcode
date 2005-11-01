@@ -142,7 +142,11 @@ recursively.
       (let ((c (char-to-string (char-after))))
 ;;         (edebug)
         ; if we're past the fill column, fill!
-        (if (>= (current-column) fill-column) 
+        (if (or (>= (current-column) fill-column)
+                (and arg
+                     (= (current-column) (- fill-column 1))
+                     (equal c ")")
+                     (equal (char-to-string (char-after (+ (point) 1))) ",")))
            (progn
               (skip-chars-backward "^(),")
               (if (string-match "[(),]" (char-to-string (char-after)))
