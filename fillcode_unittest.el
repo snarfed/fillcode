@@ -133,14 +133,8 @@
 
 (deftest simple-fill
   (fillcode-test "foo(bar, baz)" "
-foo(
-bar,
-baz)" 6)
-
-  (fillcode-test "foo(bar, baz)" "
 foo(bar,
     baz)" 10)
-
 
   ; a
   (fillcode-test "foo(bar, baz, baj)" "
@@ -169,6 +163,13 @@ foo(bar, baz,
   (fillcode-test "foo(bar, baz, baj)" "
 foo(bar, baz,
     baj)" 14)
+
+  ; if no fill point before fill-column, don't try to fill. wait until the
+  ; next fill point.
+  (fillcode-test "foo(bar, bazbaz, baj)" "
+foo(bar,
+    bazbaz,
+    baj)" 10)
   )
 
 (deftest multiple-identifiers-between-commas
@@ -187,6 +188,11 @@ foo(bar baz baj,
   (fillcode-test "foo(x(y, z))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y ,z ))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ))" "foo(x(y, z), a(b, c))")
+
+  (fillcode-test "foo(bar, baz)" "
+foo(
+    bar,
+    baz)" 6)
 
   (fillcode-test "foo(barbar, baz(baj))" "
 foo(barbar,
@@ -243,15 +249,19 @@ foo(barbarbar, baz(x),
   (fillcode-test "foo( x ( y ,z ))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ))" "foo(x(y, z), a(b, c))")
 
+  (fillcode-test "foo(bar, baz)" "
+foo(bar,
+    baz)" 6)
+
   (fillcode-test "foo(barbar, baz(baj))" "
 foo(barbar,
     baz(baj))" 13)
 
-  ; TODO: in many modes, when barbar is filled, it indents to the same place
-  ; (column 4). make this fail gracefully.
-;;   (fillcode-test "foo(barbar(baz))" "
-;; foo(barbar(
-;;     baz))" 12)
+  ; TODO: in many major modes, when barbar is filled, it indents to the same
+  ; place (column 4). make this fail gracefully.
+  (fillcode-test "foo(barbar(baz))" "
+foo(barbar(
+    baz))" 12)
 
   ; (
   (fillcode-test "foo(barbarbar, baz(x), baf)" "

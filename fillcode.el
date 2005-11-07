@@ -30,9 +30,6 @@
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; TODO:
-;; - if fill-column falls on comma after close paren of nested call, we go back
-;;   inside the nested call to fill, but we don't think we're inside it in the
-;;   call stack. grr!
 ;; - if first arg doesn't pass fill-column, but next one does, newline first
 ;;   (maybe option for preferring first arg on first line or on next line?)
 ;; - add beginning-of-statement fns for more languages
@@ -140,26 +137,12 @@ recursively.
   (catch 'closeparen
     (while (char-after)
       (let ((c (char-to-string (char-after))))
-;;         (edebug)
-        ; if we're past the fill column, fill!
-        (if (or (>= (current-column) fill-column)
-                (and arg
-                     (= (current-column) (- fill-column 1))
-                     (equal c ")")
-                     (equal (char-to-string (char-after (+ (point) 1))) ",")))
-           (progn
-              (skip-chars-backward "^(),")
-              (if (string-match "[(),]" (char-to-string (char-after)))
-                  (re-search-backward "[^(),]"))
-               ; if sticky, don't fill the first arg of nested fn calls
-              (if (and fillcode-nested-calls-are-sticky
-                       arg (equal (char-to-string (char-before)) "("))
-                  (save-excursion
-                    (backward-char)
-                    (skip-chars-backward "^(),")
-                    (newline-and-indent)
-                    )
-                (newline-and-indent))))
+        (edebug)
+        ; fill if we need to
+        (if (should-fill)
+            (progn
+              (find-fill-point-backward)
+              (newline-and-indent)))
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
             (fillcode t))
@@ -171,18 +154,18 @@ recursively.
         )))
 
   ; if this is a nested function call, and we filled, newline after next comma
-  (if (and arg
-           (save-excursion
-             (skip-chars-backward "^(" (line-beginning-position))
-             (eq (point) (line-beginning-position))))
-      (progn
-        (collapse-whitespace-forward)  ; move past close paren
-        (if (equal "," (char-to-string (char-after)))
-            (progn
-              (delete-horizontal-space)
-              (forward-char)  ; move past comma
-              (collapse-whitespace-forward)
-              (newline-and-indent)))))
+;;   (if (and arg
+;;            (save-excursion
+;;              (skip-chars-backward "^(" (line-beginning-position))
+;;              (eq (point) (line-beginning-position))))
+;;       (progn
+;;         (collapse-whitespace-forward)  ; move past close paren
+;;         (if (equal "," (char-to-string (char-after)))
+;;             (progn
+;;               (delete-horizontal-space)
+;;               (forward-char)  ; move past comma
+;;               (collapse-whitespace-forward)
+;;               (newline-and-indent)))))
 
   ; return t to indicate that we filled something
   t
@@ -241,5 +224,60 @@ next non-whitespace char.
       ; ...otherwise, base case: advance one char
       (forward-char)))
     )
+
+(defun should-fill ()
+  "Return t if we should fill at the last fill point, nil otherwise. We should
+fill if:
+
+- there's a fill point on this line, AND EITHER
+
+- the current char is at or beyond fill-column OR
+
+- the current char is the close paren of a nested call, and the next char is a
+  comma. (have to look ahead like this so that we don't end up past the close
+  paren, and miss the close paren base case, which would screw up the stack.)
+"
+  (and
+   ; fill point on this line?
+   (save-excursion
+     (catch 'no-fill-point
+       (find-fill-point-backward)
+       t))
+   ; past fill-column?
+   (or (>= (current-column) fill-column)
+       ; this is a close paren, and next is a comma past fill-column?
+       (and arg
+            (= (current-column) (- fill-column 1))
+            (equal c ")")
+            (equal (char-to-string (char-after (+ (point) 1))) ",")))
+   ))
+
+
+(defun find-fill-point-backward ()
+  "Moves point to the closest preceding fill point on the current line. Fill
+points are commas, open parens (if fillcode-nested-calls-are-sticky is off)
+and eventually pluses, ||s, and &&s.
+
+If there's no fill point on the current line, throws no-fill-point.
+"
+  (let* ((line-beginning
+          (line-beginning-position))
+         (fill-point-chars
+          (if fillcode-nested-calls-are-sticky ")," "(),"))
+         (non-fill-point-chars
+          (concat "^" fill-point-chars))
+         (fill-point-re
+          (concat "[" fill-point-chars "]"))
+         (non-fill-point-re
+          (concat "[" non-fill-point-chars "]")))
+
+    (skip-chars-backward non-fill-point-chars (line-beginning-position))
+    (if (string-match fill-point-re (char-to-string (char-after)))
+        (re-search-backward non-fill-point-re (line-beginning-position)))
+
+    (if (= (point) line-beginning)
+        (throw 'no-fill-point nil))
+    ))
+
 
 (provide 'fillcode)
