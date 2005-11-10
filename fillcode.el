@@ -137,7 +137,7 @@ recursively.
   (catch 'closeparen
     (while (char-after)
       (let ((c (char-to-string (char-after))))
-        (edebug)
+;;         (edebug)
         ; fill if we need to
         (if (should-fill)
             (progn
