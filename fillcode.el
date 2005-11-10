@@ -139,9 +139,9 @@ recursively.
       (let ((c (char-to-string (char-after))))
 ;;         (edebug)
         ; fill if we need to
-        (if (should-fill)
+        (if (fillcode-should-fill)
             (progn
-              (find-fill-point-backward)
+              (fillcode-find-fill-point-backward)
               (newline-and-indent)))
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
@@ -225,7 +225,7 @@ next non-whitespace char.
       (forward-char)))
     )
 
-(defun should-fill ()
+(defun fillcode-should-fill ()
   "Return t if we should fill at the last fill point, nil otherwise. We should
 fill if:
 
@@ -241,7 +241,7 @@ fill if:
    ; fill point on this line?
    (save-excursion
      (catch 'no-fill-point
-       (find-fill-point-backward)
+       (fillcode-find-fill-point-backward)
        t))
    ; past fill-column?
    (or (>= (current-column) fill-column)
@@ -253,7 +253,7 @@ fill if:
    ))
 
 
-(defun find-fill-point-backward ()
+(defun fillcode-find-fill-point-backward ()
   "Moves point to the closest preceding fill point on the current line. Fill
 points are commas, open parens (if fillcode-nested-calls-are-sticky is off)
 and eventually pluses, ||s, and &&s.
