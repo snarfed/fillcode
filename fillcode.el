@@ -1,3 +1,4 @@
+;;; fillcode.el --- foo bar
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005 Ryan Barrett <fillcode@ryanb.org>
@@ -16,10 +17,10 @@
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; LCD Archive Entry: 
-;; fillcode|Ryan Barrett|fillcode@ryanb.org| 
+;; LCD Archive Entry:
+;; fillcode|Ryan Barrett|fillcode@ryanb.org|
 ;; Minor mode to fill function calls and other parts of source code|
-;; 7-September-2005|0.1|~/packages/fillcode.el| 
+;; 7-September-2005|0.1|~/packages/fillcode.el|
 
 ;; This minor mode enhance the fill functions when in source code major modes,
 ;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
@@ -64,7 +65,7 @@ For more information, see http://snarfed.org/space/fillcode
   'fillcode-wrapped-fill-function) ;; runs if this returns nil.
  (make-local-variable 'fill-paragraph-function)
  (if fillcode-mode
-     (progn 
+     (progn
        (if (not (eq fill-paragraph-function 'fillcode-fill-paragraph))
            (setq fillcode-wrapped-fill-function fill-paragraph-function)
          (setq fillcode-wrapped-fill-function nil))
@@ -78,8 +79,9 @@ For more information, see http://snarfed.org/space/fillcode
   :group 'fill)
 
 (defcustom fillcode-nested-calls-are-sticky nil
-  "If non-nil, fillcode-mode will not separate a nested function call from its
-first argument. For example, if this variable is non-nil, this:
+  "If non-nil, fillcode will not separate a nested call's first argument.
+\(This does *not* apply to the outermost function call.) For example, if this
+variable is non-nil, this:
 
 foo(bar, baz(baj))
 
@@ -91,8 +93,7 @@ foo(bar,
 If this variable is nil, it will fill to:
 
 foo(bar, baz(
-    baj))
-"
+    baj))"
   :type 'boolean
   :group 'fillcode)
 
@@ -103,8 +104,7 @@ foo(bar, baz(
 If fillcode-wrapped-fill-function is nil, fills code. If it's non-nil, runs it
 first, and only fills code if it returns nil.
 
-Intended to be set as fill-paragraph-function.
-"
+Intended to be set as fill-paragraph-function."
   (save-excursion
     (if fillcode-wrapped-fill-function
         (let ((ret (apply fillcode-wrapped-fill-function arg)))
@@ -122,8 +122,7 @@ The actual function-call-filling algorithm. Fills function calls and prototypes
 if it thinks the point is on statement that has one.
 
 Without arg, starts at the beginning of the statement. With arg, fills
-recursively.
-"
+recursively."
   (interactive)
   (if (not arg)
       (if (not (fillcode-beginning-of-statement))
@@ -177,9 +176,8 @@ recursively.
 Calls the major mode's beginning-of-statement function, if it has one.
 Otherwise, for safety, just goes to the beginning of the line.
 
-c-beginning-of-statement might be a good fallback for unknown languages, but it
-occasionally fails badly, e.g. in perl-mode in some cases.
-"
+`c-beginning-of-statement' might be a good fallback for unknown languages, but
+it occasionally fails badly, e.g. in `perl-mode' in some cases."
   (case major-mode
     ('c-mode 'c++-mode 'java-mode 'objc-mode
       (c-beginning-of-statement))
@@ -195,10 +193,9 @@ occasionally fails badly, e.g. in perl-mode in some cases.
 
 
 (defun collapse-whitespace-forward ()
-  "Delete newlines and normalize whitespace (no spaces before commas or open
-parens or after close parens, one space after commas). Then advance point to
-next non-whitespace char.
-"
+  "Delete newlines and normalize whitespace.
+Specifically, no spaces before commas or open parens or after close parens,
+one space after commas. Then advance point to next non-whitespace char."
   (interactive)
 
   ; if we're on whitespace, delete and normalize it...
@@ -226,17 +223,17 @@ next non-whitespace char.
     )
 
 (defun fillcode-should-fill ()
-  "Return t if we should fill at the last fill point, nil otherwise. We should
-fill if:
+  "Return t if we should fill at the last fill point, nil otherwise.
+
+We should fill if:
 
 - there's a fill point on this line, AND EITHER
 
-- the current char is at or beyond fill-column OR
+- the current char is at or beyond `fill-column' OR
 
 - the current char is the close paren of a nested call, and the next char is a
   comma. (have to look ahead like this so that we don't end up past the close
-  paren, and miss the close paren base case, which would screw up the stack.)
-"
+  paren, and miss the close paren base case, which would screw up the stack.)"
   (and
    ; fill point on this line?
    (save-excursion
@@ -254,12 +251,11 @@ fill if:
 
 
 (defun fillcode-find-fill-point-backward ()
-  "Moves point to the closest preceding fill point on the current line. Fill
-points are commas, open parens (if fillcode-nested-calls-are-sticky is off)
-and eventually pluses, ||s, and &&s.
+  "Move point to the closest preceding fill point on the current line.
+Fill points are commas, open parens (if fillcode-nested-calls-are-sticky is
+off) and eventually pluses, ||s, and &&s.
 
-If there's no fill point on the current line, throws no-fill-point.
-"
+If there's no fill point on the current line, throws no-fill-point."
   (let* ((line-beginning
           (line-beginning-position))
          (fill-point-chars
@@ -281,3 +277,7 @@ If there's no fill point on the current line, throws no-fill-point.
 
 
 (provide 'fillcode)
+
+(provide 'fillcode)
+
+;;; fillcode.el ends here
