@@ -36,7 +36,6 @@
 ;; - add beginning-of-statement fns for more languages
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
-;; - make it work in c-mode-common (since M-q gets set to c-fill-paragraph)
 ;; - make it compatible with filladapt-mode
 
 (require 'cl)  ; for the case macro
@@ -65,14 +64,33 @@ For more information, see http://snarfed.org/space/fillcode
   'fillcode-wrapped-fill-function) ;; runs if this returns nil.
  (make-local-variable 'fill-paragraph-function)
  (if fillcode-mode
-     (progn
+     ; this runs when fillcode is enabled...
+     (progn 
        (if (not (eq fill-paragraph-function 'fillcode-fill-paragraph))
            (setq fillcode-wrapped-fill-function fill-paragraph-function)
          (setq fillcode-wrapped-fill-function nil))
-       (setq fill-paragraph-function 'fillcode-fill-paragraph))
-   (if (eq fill-paragraph-function 'fillcode-fill-paragraph)
-       (setq fill-paragraph-function fillcode-wrapped-fill-function)))
+       (setq fill-paragraph-function 'fillcode-fill-paragraph)
+       (ad-activate 'c-fill-paragraph))
+   ; ...and this runs when it's disabled.
+   (progn
+     (if (eq fill-paragraph-function 'fillcode-fill-paragraph)
+         (setq fill-paragraph-function fillcode-wrapped-fill-function))
+     (ad-deactivate 'c-fill-paragraph))
+   )
  )
+
+(defadvice c-fill-paragraph (around fillcode-if-in-code)
+  "Fill code even in `cc-mode'.
+
+`cc-mode' replaces `fill-paragraph' with its own function, `c-fill-paragraph',
+which only calls fill-paragraph if it's inside a comment or string literal, and
+narrows to that comment or string literal. Fillcode operates on code itself, so
+it needs a chance to run (without narrowing!), which this advice provides."
+  (let ((fill-paragraph-function nil))
+    ad-do-it)
+  (fillcode)
+  )
+
 
 (defgroup fillcode nil
   "Fill code"
@@ -179,14 +197,14 @@ Otherwise, for safety, just goes to the beginning of the line.
 `c-beginning-of-statement' might be a good fallback for unknown languages, but
 it occasionally fails badly, e.g. in `perl-mode' in some cases."
   (case major-mode
-    ('c-mode 'c++-mode 'java-mode 'objc-mode
-      (c-beginning-of-statement))
-    ('python-mode
-      (py-goto-statement-at-or-above))
-    ('perl-mode
-      (c-beginning-of-statement))
+    ((c-mode c++-mode java-mode objc-mode)
+     (c-beginning-of-statement))
+    ((python-mode)
+     (py-goto-statement-at-or-above))
+    ((perl-mode)
+     (c-beginning-of-statement))
     (otherwise
-      (beginning-of-line)))  ; default
+     (beginning-of-line)))  ; default
 
   (search-forward "(" (line-end-position) t)
   )
@@ -205,9 +223,7 @@ one space after commas. Then advance point to next non-whitespace char."
 
         ; if newline, delete and recurse
         (if (eolp)
-            (progn
-              (delete-indentation t)
-              (collapse-whitespace-forward))
+            (delete-indentation t)
           (progn
             (if (not (string-match "[(), \n]" (char-to-string (char-after))))
                 (fixup-whitespace))

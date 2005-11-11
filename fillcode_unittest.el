@@ -97,6 +97,10 @@
   (fillcode-test "foo(bar, baz )" "foo(bar, baz)")
   (fillcode-test "foo( bar, baz)" "foo(bar, baz)")
   (fillcode-test "foo( bar, baz )" "foo(bar, baz)")
+  (fillcode-test "foo(bar
+)
+baz" "foo(bar)
+baz")
   )
 
 (deftest comma-whitespace
