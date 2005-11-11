@@ -1,3 +1,5 @@
+;; fillcode_unittest.el - Unit tests for the fillcode minor mode
+;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005 Ryan Barrett <fillcode@ryanb.org>
@@ -261,11 +263,8 @@ foo(bar,
 foo(barbar,
     baz(baj))" 13)
 
-  ; TODO: in many major modes, when barbar is filled, it indents to the same
-  ; place (column 4). make this fail gracefully.
-  (fillcode-test "foo(barbar(baz))" "
-foo(barbar(
-    baz))" 12)
+  ; sticky. shouldn't fill even though it extends beyond fill-column.
+  (fillcode-test "foo(barbar(baz))" "foo(barbar(baz))" 12)
 
   ; (
   (fillcode-test "foo(barbarbar, baz(x), baf)" "

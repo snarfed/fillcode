@@ -1,4 +1,5 @@
-;;; fillcode.el --- foo bar
+;; fillcode.el --- Fillcode minor mode
+;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005 Ryan Barrett <fillcode@ryanb.org>
@@ -272,27 +273,19 @@ Fill points are commas, open parens (if fillcode-nested-calls-are-sticky is
 off) and eventually pluses, ||s, and &&s.
 
 If there's no fill point on the current line, throws no-fill-point."
-  (let* ((line-beginning
-          (line-beginning-position))
-         (fill-point-chars
+  (let* ((fill-point-chars
           (if fillcode-nested-calls-are-sticky ")," "(),"))
-         (non-fill-point-chars
-          (concat "^" fill-point-chars))
          (fill-point-re
-          (concat "[" fill-point-chars "]"))
-         (non-fill-point-re
-          (concat "[" non-fill-point-chars "]")))
+          (concat "[" fill-point-chars "][^" fill-point-chars "]")))
 
-    (skip-chars-backward non-fill-point-chars (line-beginning-position))
-    (if (string-match fill-point-re (char-to-string (char-after)))
-        (re-search-backward non-fill-point-re (line-beginning-position)))
+    (forward-char)
+    (condition-case nil
+        (re-search-backward fill-point-re (line-beginning-position))
+      (search-failed (throw 'no-fill-point nil)))
 
-    (if (= (point) line-beginning)
-        (throw 'no-fill-point nil))
+    (forward-char)
     ))
 
-
-(provide 'fillcode)
 
 (provide 'fillcode)
 
