@@ -89,7 +89,7 @@ narrows to that comment or string literal. Fillcode operates on code itself, so
 it needs a chance to run (without narrowing!), which this advice provides."
   (let ((fill-paragraph-function nil))
     ad-do-it)
-  (fillcode)
+  (fillcode-fill-paragraph nil)
   )
 
 
@@ -118,34 +118,33 @@ foo(bar, baz(
 
 
 (defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
-  "Fill code at point if fillcode-wrapped-fill-function returns nil.
+  "Fill code at point if fillcode-wrapped-fill-function is nil.
 
 If fillcode-wrapped-fill-function is nil, fills code. If it's non-nil, runs it
 first, and only fills code if it returns nil.
 
 Intended to be set as fill-paragraph-function."
   (save-excursion
-    (if fillcode-wrapped-fill-function
-        (let ((ret (apply fillcode-wrapped-fill-function arg)))
-          (if ret
-              ret
-            (fillcode)))
-      (fillcode))
+    ; first, see if the original fill function does anything
+    (let ((ret (if fillcode-wrapped-fill-function
+                   (apply fillcode-wrapped-fill-function arg)
+                 nil)))
+      ; if it does, don't do anything
+      (if ret
+          ret
+        ; if it doesn't, fill code
+        (if (fillcode-beginning-of-statement)
+            (fillcode)
+          nil)))
     ))
 
 
 
-(defun fillcode (&optional arg)
+(defun fillcode ()
   "Fill code at point.
 The actual function-call-filling algorithm. Fills function calls and prototypes
-if it thinks the point is on statement that has one.
-
-Without arg, starts at the beginning of the statement. With arg, fills
-recursively."
+if it thinks the point is on a statement that has one."
   (interactive)
-  (if (not arg)
-      (if (not (fillcode-beginning-of-statement))
-          (error "No function found to fill")))
   (collapse-whitespace-forward)
 
   ; the main loop. advances through the statement, normalizing whitespace and
@@ -163,7 +162,7 @@ recursively."
               (newline-and-indent)))
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
-            (fillcode t))
+            (fillcode))
         ; close parenthesis is our base case; return!
         (if (equal c ")")
             (throw 'closeparen t))

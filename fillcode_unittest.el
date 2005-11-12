@@ -39,11 +39,13 @@
     ))
 
 
-; test harness. runs fillcode on the given input in a temp buffer in python
-; mode - with the desired fill column, if provided - then compares the results
-; to the expected output.
+; test harness. runs fillcode on the given input in a temp buffer in java-mode
+; - with the desired fill column, if provided - then compares the results to
+; the expected output.
 ;
 ; if the first character of the expected output is a newline, it's removed.
+;
+; returns the value returned from fillcode.
 (defun fillcode-test (input expected &optional desired-fill-column)
   (let ((expected-trimmed
          (if (eq ?\n (string-to-char expected))
@@ -54,34 +56,36 @@
       (if (auto-fill-mode nil)  ; turn off auto-fill-mode so that the input
           (auto-fill-mode nil)) ; string isn't automatically filled
       (insert-string input)
-      (python-mode)             ; so that we know how to indent
+      (java-mode-clean)       ; so that we know how to indent
       (beginning-of-buffer)
       (if desired-fill-column
           (setq fill-column desired-fill-column))
-      (fillcode)
-      (assert-equal expected-trimmed (buffer-string)))
+      (let ((ret (fillcode-fill-paragraph nil)))
+        (assert-equal expected-trimmed (buffer-string))
+        ret))
   ))
 
-; error handling test harness. runs fillcode on the given input in a temp
-; buffer, and succeeds only if fillcode raises the error no-function-to-fill.
-(defun fillcode-test-error (input)
-  (condition-case err
-      (progn
-         (fillcode-test input "")
-        (fail "Expected error no-function-to-fill, but no error was raised"))
+; set up java-mode appropriate for testing fillcode - plain vanilla (no
+; hooks), no tabs, basic-offset 2.
+(defun java-mode-clean ()
+  (setq c-basic-offset 2
+        indent-tabs-mode nil)
+  (let ((java-mode-hook nil))
+    (java-mode)))
 
-    (error (let ((msg (cadr err)))
-             (if (not (equal msg "No function found to fill"))
-                 (fail (concat "Unexpected error: " msg)))))
-    ))
+; failure test harness. runs fillcode on the given input in a temp buffer, and
+; succeeds only if fillcode returns nil (ie it didn't fill).
+(defun fillcode-test-not-filled (input)
+  (if (fillcode-test input input)
+      (fail "Expected nil, but returned non-nil")))
 
 
 ; test cases
 (deftest no-function-to-fill
-  (fillcode-test-error "")
-  (fillcode-test-error ")")
-  (fillcode-test-error "foo")
-  (fillcode-test-error "foo)")
+  (fillcode-test-not-filled "")
+  (fillcode-test-not-filled ")")
+  (fillcode-test-not-filled "foo")
+  (fillcode-test-not-filled "foo)")
   )
 
 (deftest no-args
@@ -204,9 +208,8 @@ foo(
 foo(barbar,
     baz(baj))" 13)
 
-  (fillcode-test "foo(barbar(baz))" "
-foo(barbar(
-    baz))" 12)
+  (fillcode-test "foo(barbar(baz))" "foo(barbar(
+        baz))" 12)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -224,17 +227,17 @@ foo(barbarbar,
   ; x
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(
-    x), baf)" 19)
+        x), baf)" 19)
 
   ; )
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(
-    x), baf)" 20)
+        x), baf)" 20)
 
   ; ,
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(
-    x), baf)" 21)
+        x), baf)" 21)
 
   ; [space]
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
