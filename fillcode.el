@@ -217,7 +217,7 @@ one space after commas. Then advance point to next non-whitespace char."
   (interactive)
 
   ; if we're on whitespace, delete and normalize it...
-  (if (string-match "[(), \t\n]" (char-to-string (char-after)))
+  (if (string-match "[(),+-/* \t\n]" (char-to-string (char-after)))
       (progn
         (delete-horizontal-space)
 
@@ -269,11 +269,11 @@ We should fill if:
 (defun fillcode-find-fill-point-backward ()
   "Move point to the closest preceding fill point on the current line.
 Fill points are commas, open parens (if fillcode-nested-calls-are-sticky is
-off) and eventually pluses, ||s, and &&s.
+off) and eventually arithmetic operators, ||s, &&s, etc.
 
 If there's no fill point on the current line, throws no-fill-point."
   (let* ((fill-point-chars
-          (if fillcode-nested-calls-are-sticky ")," "(),"))
+          (if fillcode-nested-calls-are-sticky "),+-/*" "(),+-/*"))
          (fill-point-re
           (concat "[" fill-point-chars "][^" fill-point-chars "]")))
 

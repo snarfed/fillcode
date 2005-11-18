@@ -39,9 +39,9 @@
     ))
 
 
-; test harness. runs fillcode on the given input in a temp buffer in java-mode
-; - with the desired fill column, if provided - then compares the results to
-; the expected output.
+; test harness. runs fillcode on the given input in a temp buffer in
+; python-mode - with the desired fill column, if provided - then compares the
+; results to the expected output.
 ;
 ; if the first character of the expected output is a newline, it's removed.
 ;
@@ -56,7 +56,7 @@
       (if (auto-fill-mode nil)  ; turn off auto-fill-mode so that the input
           (auto-fill-mode nil)) ; string isn't automatically filled
       (insert-string input)
-      (java-mode-clean)       ; so that we know how to indent
+      (python-mode-clean)       ; so that we know how to indent
       (beginning-of-buffer)
       (if desired-fill-column
           (setq fill-column desired-fill-column))
@@ -65,13 +65,15 @@
         ret))
   ))
 
-; set up java-mode appropriate for testing fillcode - plain vanilla (no
+; set up python-mode appropriate for testing fillcode - plain vanilla (no
 ; hooks), no tabs, basic-offset 2.
-(defun java-mode-clean ()
-  (setq c-basic-offset 2
+(defun python-mode-clean ()
+  (setq
+;;         c-basic-offset 2
         indent-tabs-mode nil)
-  (let ((java-mode-hook nil))
-    (java-mode)))
+  (let ((python-mode-hook nil))
+    (python-mode))
+  (fillcode-mode))
 
 ; failure test harness. runs fillcode on the given input in a temp buffer, and
 ; succeeds only if fillcode returns nil (ie it didn't fill).
@@ -127,6 +129,13 @@ baz")
   (fillcode-test "foo(bar\n,baz)" "foo(bar, baz)")
   (fillcode-test "foo(\nbar,baz\n)" "foo(bar, baz)")
   (fillcode-test "foo(\nbar\n,\nbaz\n)" "foo(bar, baz)")
+  )
+
+(deftest arithmetic-whitespace
+  (fillcode-test "foo(bar+baz)" "foo(bar + baz)")
+  (fillcode-test "foo(bar-  baz)" "foo(bar - baz)")
+  (fillcode-test "foo(bar /baz)" "foo(bar / baz)")
+  (fillcode-test "foo(bar  *  baz)" "foo(bar * baz)")
   )
 
 (deftest blank-lines
@@ -209,7 +218,7 @@ foo(barbar,
     baz(baj))" 13)
 
   (fillcode-test "foo(barbar(baz))" "foo(barbar(
-        baz))" 12)
+    baz))" 12)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -227,17 +236,17 @@ foo(barbarbar,
   ; x
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(
-        x), baf)" 19)
+    x), baf)" 19)
 
   ; )
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(
-        x), baf)" 20)
+    x), baf)" 20)
 
   ; ,
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(
-        x), baf)" 21)
+    x), baf)" 21)
 
   ; [space]
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
@@ -293,4 +302,13 @@ foo(barbarbar,
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(x),
     baf)" 22)
+  )
+
+(deftest arithmetic
+  (fillcode-test "foo(bar + baz - baf / baj * bap)" "
+foo(bar +
+    baz -
+    baf /
+    baj *
+    bap)" 11)
   )
