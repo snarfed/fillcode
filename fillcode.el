@@ -38,6 +38,8 @@
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
 ;; - make it compatible with filladapt-mode
+;; - somehow include the assignment = operator and <, > in
+;;   fillcode-fill-point-re. (how to handle <, > with e.g. templates?!?)
 
 (require 'cl)  ; for the case macro
 
@@ -114,6 +116,18 @@ If this variable is nil, it will fill to:
 foo(bar, baz(
     baj))"
   :type 'boolean
+  :group 'fillcode)
+
+(defcustom fillcode-fill-point-re
+  (concat ",\\|"
+          "\\([+-/*][^=+-]\\)\\|"
+          "==\\|!=\\|||\\|&&\\|<=\\|>=")
+  "A regular expression used to find the next fill point.
+A fill point is a point in an expression where a newline can reasonably be
+inserted. You may modify this to allow fillcode to handle new languages.
+
+The single = (assignment) operator and < and > operators are notably absent."
+  :type 'string
   :group 'fillcode)
 
 
@@ -213,30 +227,34 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
 (defun collapse-whitespace-forward ()
   "Delete newlines and normalize whitespace.
 Specifically, no spaces before commas or open parens or after close parens,
-one space after commas. Then advance point to next non-whitespace char."
+one space after commas, one space before and after arithmetic operators. Then
+advance point to next non-whitespace char."
   (interactive)
-
-  ; if we're on whitespace, delete and normalize it...
-  (if (string-match "[(),+-/* \t\n]" (char-to-string (char-after)))
+  (let* ((whitespace-chars " \t\n")
+         (need-collapse-re (concat "[()" whitespace-chars "]\\|"
+                                   fillcode-fill-point-re)))
+  ; if we're on whitespace or stop chars, delete and normalize it...
+    (if (looking-at need-collapse-re)
       (progn
         (delete-horizontal-space)
 
-        ; if newline, delete and recurse
+        ; if we're at the end of the line, pull up the next line
         (if (eolp)
             (delete-indentation t)
+          ; otherwise insert a space, if necessary, and advance
           (progn
-            (if (not (string-match "[(), \n]" (char-to-string (char-after))))
+            (if (not (looking-at need-collapse-re))
                 (fixup-whitespace))
-            (if (string-match "[() ,]" (char-to-string (char-after)))
+            (if (looking-at need-collapse-re)
                 (forward-char)))))
 
     ; else if we're after a comma, normalize to one space
-    (if (equal "," (char-to-string (char-before)))
-        (fixup-whitespace)
+      (if (equal "," (char-to-string (char-before)))
+          (fixup-whitespace)
 
       ; ...otherwise, base case: advance one char
-      (forward-char)))
-    )
+        (forward-char)))
+    ))
 
 (defun fillcode-should-fill ()
   "Return t if we should fill at the last fill point, nil otherwise.
@@ -258,11 +276,13 @@ We should fill if:
        t))
    ; past fill-column?
    (or (>= (current-column) fill-column)
-       ; this is a close paren, and next is a comma past fill-column?
-       (and arg
-            (= (current-column) (- fill-column 1))
+       ; this is a close paren, and next is a fill point past fill-column?
+       (save-excursion
+         (and arg
             (equal c ")")
-            (equal (char-to-string (char-after (+ (point) 1))) ",")))
+            (skip-chars-forward ") \t\n")
+            (looking-at fillcode-fill-point-re)
+            (>= (current-column) fill-column))))
    ))
 
 
@@ -272,10 +292,14 @@ Fill points are commas, open parens (if fillcode-nested-calls-are-sticky is
 off) and eventually arithmetic operators, ||s, &&s, etc.
 
 If there's no fill point on the current line, throws no-fill-point."
-  (let* ((fill-point-chars
-          (if fillcode-nested-calls-are-sticky "),+-/*" "(),+-/*"))
-         (fill-point-re
-          (concat "[" fill-point-chars "][^" fill-point-chars "]")))
+;;   (let* ((fill-point-chars
+;;           (if fillcode-nested-calls-are-sticky "),+-/*" "(),+-/*"))
+;;          (fill-point-re
+;;           (concat "[" fill-point-chars "][^" fill-point-chars "]")))
+  (let ((fill-point-re
+          (if fillcode-nested-calls-are-sticky
+              fillcode-fill-point-re
+              (concat "(\\|" fillcode-fill-point-re))))
 
     (forward-char)
     (condition-case nil

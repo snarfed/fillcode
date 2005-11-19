@@ -131,12 +131,12 @@ baz")
   (fillcode-test "foo(\nbar\n,\nbaz\n)" "foo(bar, baz)")
   )
 
-(deftest arithmetic-whitespace
-  (fillcode-test "foo(bar+baz)" "foo(bar + baz)")
-  (fillcode-test "foo(bar-  baz)" "foo(bar - baz)")
-  (fillcode-test "foo(bar /baz)" "foo(bar / baz)")
-  (fillcode-test "foo(bar  *  baz)" "foo(bar * baz)")
-  )
+;; (deftest arithmetic-whitespace
+;;   (fillcode-test "foo(bar+baz)" "foo(bar + baz)")
+;;   (fillcode-test "foo(bar-  baz)" "foo(bar - baz)")
+;;   (fillcode-test "foo(bar /baz)" "foo(bar / baz)")
+;;   (fillcode-test "foo(bar  *  baz)" "foo(bar * baz)")
+;;   )
 
 (deftest blank-lines
   (fillcode-test "foo(\n\nbar, baz)" "foo(bar, baz)")
@@ -304,11 +304,11 @@ foo(barbarbar, baz(x),
     baf)" 22)
   )
 
-(deftest arithmetic
-  (fillcode-test "foo(bar + baz - baf / baj * bap)" "
-foo(bar +
-    baz -
-    baf /
-    baj *
-    bap)" 11)
-  )
+;; (deftest arithmetic
+;;   (fillcode-test "foo(bar + baz - baf / baj * bap)" "
+;; foo(bar +
+;;     baz -
+;;     baf /
+;;     baj *
+;;     bap)" 11)
+;;   )
