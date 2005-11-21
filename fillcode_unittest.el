@@ -18,7 +18,7 @@
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Unit tests for fillcode; run them with runtests.sh or M-x eval-buffer.
+;; Unit tests for fillcode; run them with runtests.sh or M-x eval-buffer C-F10.
 ;; For more information about fillcode, see fillcode.el.
 ;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
 
@@ -35,7 +35,7 @@
   (lambda ()
     (interactive)
     (save-some-buffers)
-    (elunit-run (list (buffer-name)))
+    (elunit-run '("fillcode_unittest.el"))
     ))
 
 
@@ -131,12 +131,12 @@ baz")
   (fillcode-test "foo(\nbar\n,\nbaz\n)" "foo(bar, baz)")
   )
 
-;; (deftest arithmetic-whitespace
-;;   (fillcode-test "foo(bar+baz)" "foo(bar + baz)")
-;;   (fillcode-test "foo(bar-  baz)" "foo(bar - baz)")
-;;   (fillcode-test "foo(bar /baz)" "foo(bar / baz)")
-;;   (fillcode-test "foo(bar  *  baz)" "foo(bar * baz)")
-;;   )
+(deftest arithmetic-whitespace
+  (fillcode-test "foo(bar+baz)" "foo(bar + baz)")
+  (fillcode-test "foo(bar-  baz)" "foo(bar - baz)")
+  (fillcode-test "foo(bar /baz)" "foo(bar / baz)")
+  (fillcode-test "foo(bar  *  baz)" "foo(bar * baz)")
+  )
 
 (deftest blank-lines
   (fillcode-test "foo(\n\nbar, baz)" "foo(bar, baz)")
@@ -304,11 +304,43 @@ foo(barbarbar, baz(x),
     baf)" 22)
   )
 
-;; (deftest arithmetic
-;;   (fillcode-test "foo(bar + baz - baf / baj * bap)" "
-;; foo(bar +
-;;     baz -
-;;     baf /
-;;     baj *
-;;     bap)" 11)
-;;   )
+(deftest arithmetic
+  (fillcode-test "foo(bar + baz)" "foo(bar + baz)" 16)
+  (fillcode-test "foo(bar - baz)" "foo(bar - baz)" 16)
+  (fillcode-test "foo(bar / baz)" "foo(bar / baz)" 16)
+  (fillcode-test "foo(bar * baz)" "foo(bar * baz)" 16)
+  (fillcode-test "foo(bar == baz)" "foo(bar == baz)" 16)
+  (fillcode-test "foo(bar != baz)" "foo(bar != baz)" 16)
+  (fillcode-test "foo(bar >= baz)" "foo(bar >= baz)" 16)
+  (fillcode-test "foo(bar <= baz)" "foo(bar <= baz)" 16)
+  (fillcode-test "foo(bar + baz)" "
+foo(bar +
+    baz)" 11)
+  (fillcode-test "foo(bar - baz)" "
+foo(bar -
+    baz)" 11)
+  (fillcode-test "foo(bar / baz)" "
+foo(bar /
+    baz)" 11)
+  (fillcode-test "foo(bar * baz)" "
+foo(bar *
+    baz)" 11)
+  (fillcode-test "foo(bar == baz)" "
+foo(bar ==
+    baz)" 11)
+  (fillcode-test "foo(bar != baz)" "
+foo(bar !=
+    baz)" 11)
+  (fillcode-test "foo(bar >= baz)" "
+foo(bar >=
+    baz)" 11)
+  (fillcode-test "foo(bar <= baz)" "
+foo(bar <=
+    baz)" 11)
+  (fillcode-test "foo(bar + baz - baf / baj * bap)" "
+foo(bar +
+    baz -
+    baf /
+    baj *
+    bap)" 11)
+  )
