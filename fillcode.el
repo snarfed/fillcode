@@ -173,7 +173,7 @@ Intended to be set as fill-paragraph-function."
 The actual function-call-filling algorithm. Fills function calls and prototypes
 if it thinks the point is on a statement that has one."
   (interactive)
-  (collapse-whitespace-forward)
+  (fillcode-collapse-whitespace-forward)
 
   ; the main loop. advances through the statement, normalizing whitespace and
   ; deleting newlines along the way. the main loop should run once once and
@@ -195,7 +195,7 @@ if it thinks the point is on a statement that has one."
         (if (equal c ")")
             (throw 'closeparen t))
         ; next!
-        (collapse-whitespace-forward)
+        (fillcode-collapse-whitespace-forward)
         )))
 
   ; if this is a nested function call, and we filled, newline after next comma
@@ -238,7 +238,7 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
   )
 
 
-(defun collapse-whitespace-forward ()
+(defun fillcode-collapse-whitespace-forward ()
   "Delete newlines, normalize whitespace, and/or move forward one character.
 Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators. Then
@@ -295,11 +295,11 @@ We should fill if:
    (or (>= (current-column) fill-column)
        ; this is a close paren, and next is a fill point past fill-column?
        (save-excursion
-         (and arg
-            (equal c ")")
-            (skip-chars-forward (concat ") " fillcode-whitespace-chars))
-            (looking-at fillcode-fill-point-re)
-            (>= (current-column) fill-column))))
+         (and
+          (looking-at ")")
+          (skip-chars-forward (concat ") " fillcode-whitespace-chars))
+          (looking-at fillcode-fill-point-re)
+          (>= (current-column) fill-column))))
    ; fill point on this line?
    (save-excursion
      (catch 'no-fill-point
