@@ -202,13 +202,13 @@ foo(bar baz baj,
   )
 
 (deftest nested-non-sticky
-  (setq fillcode-nested-calls-are-sticky nil)
+  (setq fillcode-open-paren-sticky nil)
 
   (fillcode-test "foo(x(y, z))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y ,z ))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ))" "foo(x(y, z), a(b, c))")
 
-  (fillcode-test "foo(bar, baz)" "
+  (fillcode-test "foo(bar,baz)" "
 foo(
     bar,
     baz)" 6)
@@ -261,8 +261,11 @@ foo(barbarbar, baz(x),
 
 
 (deftest nested-sticky
-  (set-variable 'fillcode-nested-calls-are-sticky t)
+  (set-variable 'fillcode-open-paren-sticky t)
 
+  (fillcode-test "foo(bar,baz)" "
+foo(bar,
+    baz)" 6)
   (fillcode-test "foo(x(y, z))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y ,z ))" "foo(x(y, z))")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ))" "foo(x(y, z), a(b, c))")
@@ -343,4 +346,22 @@ foo(bar +
     baf /
     baj *
     bap)" 11)
+  (fillcode-test "foo(bar+baz)" "
+foo(bar +
+    baz)" 6)
+  )
+
+(deftest non-fill-point-chars
+  ;; make sure that tokens aren't normalized or filled at other special chars
+  (fillcode-test "foo(bar.baz)" "foo(bar.baz)" 6)
+  (fillcode-test "foo(bar_baz)" "foo(bar_baz)" 6)
+  (fillcode-test "foo(bar%baz)" "foo(bar%baz)" 6)
+  (fillcode-test "foo(bar$baz)" "foo(bar$baz)" 6)
+  (fillcode-test "foo(bar~baz)" "foo(bar~baz)" 6)
+  (fillcode-test "foo(bar`baz)" "foo(bar`baz)" 6)
+  (fillcode-test "foo(bar@baz)" "foo(bar@baz)" 6)
+  (fillcode-test "foo(bar!baz)" "foo(bar!baz)" 6)
+  (fillcode-test "foo(bar:baz)" "foo(bar:baz)" 6)
+  (fillcode-test "foo(bar?baz)" "foo(bar?baz)" 6)
+  (fillcode-test "foo(bar#baz)" "foo(bar#baz)" 6)
   )

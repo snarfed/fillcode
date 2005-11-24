@@ -17,12 +17,7 @@
 ;; A copy of the GNU General Public License can be obtained at
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-;; LCD Archive Entry:
-;; fillcode|Ryan Barrett|fillcode@ryanb.org|
-;; Minor mode to fill function calls and other parts of source code|
-;; 7-September-2005|0.1|~/packages/fillcode.el|
-
+;;
 ;; This minor mode enhance the fill functions when in source code major modes,
 ;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
 ;; fill function that intelligently fills some parts of source code, like
@@ -40,6 +35,14 @@
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
 ;; - make it compatible with filladapt-mode
+;; - fix c-fill-paragraph
+;; - detect string literals
+
+;; LCD Archive Entry:
+;; fillcode|Ryan Barrett|fillcode@ryanb.org|
+;; Minor mode to fill function calls and other parts of source code|
+;; 7-September-2005|0.1|~/packages/fillcode.el|
+
 
 (require 'cl)  ; for the case macro
 
@@ -99,19 +102,18 @@ it needs a chance to run (without narrowing!), which this advice provides."
   "Fill code"
   :group 'fill)
 
-(defcustom fillcode-nested-calls-are-sticky nil
-  "If non-nil, fillcode will not separate a nested call's first argument.
-\(This does *not* apply to the outermost function call.) For example, if this
-variable is non-nil, this:
+(defcustom fillcode-open-paren-sticky nil
+  "If non-nil, fillcode will not fill after an open parenthesis.
+For example, if non-nil, fillcode will fill this:
 
 foo(bar, baz(baj))
 
-will fill to:
+to
 
 foo(bar,
     baz(baj))
 
-If this variable is nil, it will fill to:
+If nil, it will fill to:
 
 foo(bar, baz(
     baj))"
@@ -119,13 +121,17 @@ foo(bar, baz(
   :group 'fillcode)
 
 (defcustom fillcode-fill-point-re
-  ;; note that the + and * need to be at the end of the bracketed groups. i'm
-  ;; not sure why, nor how to quote them so it doesn't matter. grr.
-  (concat "\\("
-            "[(,-/*+]\\|"
-            "==\\|!=\\|||\\|&&\\|<=\\|>="
-          "\\)"
-          "[^=-+]")
+  ;; note that inside a [...] group, - is used to specify ranges...so
+  ;; to match it itself, it has to be at the beginning or end.
+  (concat "\\(\\("
+                 "[,/*+-]\\|"
+                 "==\\|!=\\|||\\|&&\\|<=\\|>="
+              "\\)"
+              "[^=+-]"
+          "\\|"
+          ; an open paren is a fill point only if it's not followed by a close
+          ; paren
+          "([^)]\\)")
   "A regular expression used to find the next fill point.
 A fill point is a point in an expression where a newline can reasonably be
 inserted. This regular expression identifies fill points. It must end one
@@ -243,40 +249,39 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
 Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators. Then
 advance point to next non-whitespace char."
-  (interactive)
-    (cond
-     ; if we're at the end of the line, pull up the next line
-     ((eolp)
-      (delete-indentation t))
+  (cond
+   ; if we're at the end of the line, pull up the next line
+   ((eolp)
+    (delete-indentation t))
 
-     ; if we're on whitespace, delete it. if that brings us to a fill point,
-     ; fall down to the logic below. otherwise, normalize to exactly one space
-     ; and continue.
-     ((looking-at (concat "[" fillcode-whitespace-chars "]"))
-      (delete-horizontal-space)
-      (if (and (not (looking-at fillcode-fill-point-re))
-               (not (looking-at "(")))
-          (progn (fixup-whitespace) (forward-char))))
+   ; if we're on whitespace, delete it. if that brings us to a fill point,
+   ; fall down to the logic below. otherwise, normalize to exactly one space
+   ; and continue.
+   ((looking-at (concat "[" fillcode-whitespace-chars "]"))
+    (delete-horizontal-space)
+    (if (and (not (looking-at fillcode-fill-point-re))
+             (not (looking-at "(")))
+        (progn (fixup-whitespace) (forward-char))))
 
-     ; if we're before a non-comma/open paren fill point, insert a space
-     ((and (looking-at fillcode-fill-point-re)
-           (not (looking-at "[,(]")))
-       (progn (insert " ") (goto-char (match-end 0))))
+   ; if we're before a non-comma/open paren fill point, insert a space
+   ((and (looking-at fillcode-fill-point-re)
+         (not (looking-at "[,(]")))
+    (progn (insert " ") (goto-char (match-end 0))))
 
-     ; if we're after a fill point, insert a space. (note that the fill point
-     ; regexp ends at the first char *after* the operator.)
-     ((and (save-excursion
-             (condition-case nil
-                 (progn (forward-char)
-                        (re-search-backward fillcode-fill-point-re
-                                            (line-beginning-position)))
-               (error nil)))
-           (equal (point) (1- (match-end 0))))
-      (progn (fixup-whitespace) (forward-char)))
+   ; if we're after a fill point, insert a space. (note that the fill point
+   ; regexp ends at the first char *after* the operator.)
+   ((and (save-excursion
+           (condition-case nil
+               (progn (forward-char)
+                      (re-search-backward fillcode-fill-point-re
+                                          (line-beginning-position)))
+             (error nil)))
+         (equal (point) (1- (match-end 0))))
+    (progn (fixup-whitespace) (forward-char)))
 
-     ; ...otherwise, base case: advance one char
-     (t (forward-char))
-    ))
+   ; ...otherwise, base case: advance one char
+   (t (forward-char))
+   ))
 
 (defun fillcode-should-fill ()
   "Return t if we should fill at the last fill point, nil otherwise.
@@ -295,43 +300,72 @@ We should fill if:
    (or (>= (current-column) fill-column)
        ; this is a close paren, and next is a fill point past fill-column?
        (save-excursion
-         (and
-          (looking-at ")")
-          (skip-chars-forward (concat ") " fillcode-whitespace-chars))
-          (looking-at fillcode-fill-point-re)
-          (>= (current-column) fill-column))))
+         (and (looking-at ")")
+              (skip-chars-forward (concat ") " fillcode-whitespace-chars))
+              (looking-at fillcode-fill-point-re)
+              (>= (current-column) fill-column))))
    ; fill point on this line?
    (save-excursion
      (catch 'no-fill-point
-       (fillcode-find-fill-point-backward)
+       (fillcode-find-fill-point)
        t))
    ))
 
 
+(defun fillcode-find-fill-point ()
+  "Move point to the closest fill point on the current line.
+Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
+eventually arithmetic operators, ||s, &&s, etc. This function attempts to find
+the closest fill point that's before point and before `fill-column'. If there
+are no appropriate fill points before point, it settles for the closest one
+after point.
+
+If there's no fill point on the current line, throws `no-fill-point'."
+  (fillcode-find-fill-point-backward)
+
+  ; will this work? if we're still beyond fill column, nope, try again!
+  (if (>= (current-column) fill-column)
+      (progn
+        (goto-char (1- (match-beginning 0)))
+        (if (not (catch 'no-fill-point
+                   (fillcode-find-fill-point-backward)
+                   t))
+            ; no fill point before this one! take the closest one after
+            (fillcode-find-fill-point-forward))
+        ))
+  )
+
+
+(defun fillcode-find-fill-point-forward ()
+  (fillcode-find-fill-point-helper t))
+
 (defun fillcode-find-fill-point-backward ()
-  "Move point to the closest preceding fill point on the current line.
-Fill points are commas, open parens (if fillcode-nested-calls-are-sticky is
-off) and eventually arithmetic operators, ||s, &&s, etc.
+  ; the fill point regexp ends at the first char *after* the
+  ; operator...so, move forward one char before searching.
+  (forward-char)
+  (fillcode-find-fill-point-helper nil))
 
-If there's no fill point on the current line, throws no-fill-point."
-  (condition-case nil
-      ; the fill point regexp ends at the first char *after* the
-      ; operator...so, move forward one char before searching.
-      (progn (forward-char)
-             (re-search-backward fillcode-fill-point-re
-                                 (line-beginning-position)))
-    (search-failed (throw 'no-fill-point nil)))
+(defun fillcode-find-fill-point-helper (forward)
+  "Move to the closest fill point on the current line.
+Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
+eventually arithmetic operators, ||s, &&s, etc. This function finds the
+closest one either before or after point, depending on `forward'.
 
-  (goto-char (match-end 0))
+If there's no fill point on the current line, throws `no-fill-point'."
+  (let ((re-search-fn
+         (if forward 're-search-forward 're-search-backward))
+        (bound
+         (if forward (line-end-position) (line-beginning-position))))
+    (condition-case nil
+        (funcall re-search-fn fillcode-fill-point-re bound)
+      (search-failed (throw 'no-fill-point nil))))
 
-  ; open parens fill points are tricky
-  (if (equal "(" (substring (match-string 0) 0 1))
-      ; if stickiness is on, don't allow filling after them at all 
-      (if fillcode-nested-calls-are-sticky
-          (progn (goto-char (match-beginning 0))
-                 (fillcode-find-fill-point-backward))
-        ; otherwise, there's no space after them, so move back one char
-        (backward-char)))
+  (goto-char (1- (match-end 0)))
+
+  (if (and fillcode-open-paren-sticky
+           (equal "(" (substring (match-string 0) 0 1)))
+      ; can't fill at open parens if we're sticky. try again!
+      (fillcode-find-fill-point-helper forward))
   )
 
 
