@@ -20,6 +20,11 @@ foo(bar==asdf+baz-baj/baf*bap)
 
 foo(bar +baz)
 
+foo("bar + bar" + baz + "baj + baj")
+
+foo(/* bar,baz */)
+
+foo(bar) // baz, baj
 
 BufferedWriter bW = new BufferedWriter(new FileWriter(albumDir_.getPath()+xyz+bigImg+".html")));
 

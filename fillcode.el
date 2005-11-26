@@ -35,8 +35,8 @@
 ;; - fill things besides function calls, eg arithmetic expressions, string
 ;;   constants (language specific, ick), java throws clauses
 ;; - make it compatible with filladapt-mode
-;; - fix c-fill-paragraph
-;; - detect string literals
+;; - if point is at beginning of line, it fills *last* line. if last line has
+;;   empty function call, it infinite loops (!)
 
 ;; LCD Archive Entry:
 ;; fillcode|Ryan Barrett|fillcode@ryanb.org|
@@ -45,6 +45,9 @@
 
 
 (require 'cl)  ; for the case macro
+
+(require 'cc-bytecomp)  ; for c-in-literal and c-literal-limits
+(cc-require 'cc-engine)
 
 (defvar fillcode-version "0.1")
 
@@ -231,12 +234,10 @@ Otherwise, for safety, just goes to the beginning of the line.
 `c-beginning-of-statement' might be a good fallback for unknown languages, but
 it occasionally fails badly, e.g. in `perl-mode' in some cases."
   (case major-mode
-    ((c-mode c++-mode java-mode objc-mode)
+    ((c-mode c++-mode java-mode objc-mode perl-mode)
      (c-beginning-of-statement))
     ((python-mode)
      (py-goto-statement-at-or-above))
-    ((perl-mode)
-     (c-beginning-of-statement))
     (otherwise
      (beginning-of-line)))  ; default
 
@@ -247,9 +248,15 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
 (defun fillcode-collapse-whitespace-forward ()
   "Delete newlines, normalize whitespace, and/or move forward one character.
 Specifically, no spaces before commas or open parens or after close parens,
-one space after commas, one space before and after arithmetic operators. Then
-advance point to next non-whitespace char."
+one space after commas, one space before and after arithmetic operators.
+(Except string literals and comments, they're left untouched.) Then advance
+point to next non-whitespace char."
   (cond
+   ; if we're in a string literal or comment, skip to the end of it 
+   ((fillcode-in-literal)
+    ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
+    (forward-char))
+
    ; if we're at the end of the line, pull up the next line
    ((eolp)
     (delete-indentation t))
@@ -362,11 +369,29 @@ If there's no fill point on the current line, throws `no-fill-point'."
 
   (goto-char (1- (match-end 0)))
 
-  (if (and fillcode-open-paren-sticky
-           (equal "(" (substring (match-string 0) 0 1)))
+  ; can't flil if we're in comments or string literals, or - if we're sticky -
+  ; in an open paren
+  (if (or (fillcode-in-literal)
       ; can't fill at open parens if we're sticky. try again!
+          (and fillcode-open-paren-sticky
+               (equal "(" (substring (match-string 0) 0 1))))
       (fillcode-find-fill-point-helper forward))
   )
+
+
+(defun fillcode-in-literal ()
+  "Return non-nil if inside a comment or string literal, nil otherwise.
+Determines whether point is inside a comment, string literal, or other segment
+that shouldn't be normalized or filled. Piggybacks on the major modes, since
+it will usually have its code for this."
+  (case major-mode
+    ((c-mode c++-mode java-mode objc-mode perl-mode python-mode)
+     (c-in-literal))
+    (otherwise
+     (c-in-literal)))
+  )
+    
+  
 
 
 (provide 'fillcode)
