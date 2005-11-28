@@ -20,9 +20,16 @@ foo(bar==asdf+baz-baj/baf*bap)
 
 foo(bar +baz)
 
-foo("bar + bar" + baz + "baj + baj")
+foo("bar + bar","baj + baj")
+
+imgPath = imgPath.replace('\\','/');
 
 foo(/* bar,baz */)
+
+foo(bar,
+baz)
+
+foo(bar) foo(baz,baj)
 
 foo(bar) // baz, baj
 

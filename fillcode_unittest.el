@@ -95,6 +95,10 @@
   (fillcode-test "foo()" "foo()")
   (fillcode-test "foo(\n)" "foo()")
   (fillcode-test "foo(\n\n)" "foo()")
+
+  ;; should know when to stop even if parenthetical expression is blank
+  (fillcode-test "foo()\nbar( )" "foo()\nbar( )")
+
   )
 
 (deftest paren-whitespace
@@ -351,6 +355,23 @@ foo(bar +
     baz)" 6)
   )
 
+
+(deftest multiple-parenthesized-expressions
+  ;; if there are multiple top-level parenthetic expressions, we should fill
+  ;; all of them, not just the first
+  (fillcode-test "foo(bar) foo(baz,baj)" "foo(bar) foo(baz, baj)")
+  (fillcode-test "foo(bar) foo(baz,baj)" "
+foo(bar) foo(baz,
+             baj)" 18)
+
+  ;; ...even if they span multiple lines. (or not. TODO for later maybe.)
+;;   (fillcode-test "if (bar) \\\n  foo(baz,baj)" "
+;; if (bar) \\
+;;   foo(baz,
+;;       baj)" 12)
+  )
+
+
 (deftest non-fill-point-chars
   ;; make sure that tokens aren't normalized or filled at other special chars
   (fillcode-test "foo(bar.baz)" "foo(bar.baz)" 6)
@@ -380,6 +401,11 @@ foo(\"bar\" +
 foo(\"bar + bar\" +
     baz +
     \"baj + baj\")" 12)
+
+  ;; literals should still be normalized *around*, though
+  (fillcode-test "foo(\"bar\",\"baz\")" "foo(\"bar\", \"baz\")")
+
+  ;; comments aren't handled for now
 ;;   (fillcode-test "foo(/* bar,baz */)" "foo(/* bar,baz */)" 6)
 ;;   (fillcode-test "foo(bar, // baz, baj\nbax)" "
 ;; foo(bar,

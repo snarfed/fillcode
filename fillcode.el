@@ -171,7 +171,10 @@ Intended to be set as fill-paragraph-function."
           ret
         ; if it doesn't, fill code
         (if (fillcode-beginning-of-statement)
-            (fillcode)
+            (while (search-forward
+                    "(" (save-excursion (fillcode-end-of-statement) (point)) t)
+              (backward-char)
+              (fillcode))
           nil)))
     ))
 
@@ -227,7 +230,7 @@ if it thinks the point is on a statement that has one."
 
 
 (defun fillcode-beginning-of-statement ()
-  "Find the beginning of the statement that point is currently in.
+  "Go to the beginning of the statement that point is currently in.
 Calls the major mode's beginning-of-statement function, if it has one.
 Otherwise, for safety, just goes to the beginning of the line.
 
@@ -238,10 +241,31 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
      (c-beginning-of-statement))
     ((python-mode)
      (py-goto-statement-at-or-above))
+
+    ;`c-beginning-of-statement' might be a good fallback for unknown
+    ;languages, but it occasionally fails badly, e.g. in `perl-mode'.
     (otherwise
      (beginning-of-line)))  ; default
+  )
 
-  (search-forward "(" (line-end-position) t)
+
+(defun fillcode-end-of-statement ()
+  "Go to the end of the statement that point is currently in.
+Calls the major mode's end-of-statement function, if it has one. Otherwise,
+for safety, just goes to the end of the line."
+  (case major-mode
+    ((c-mode c++-mode java-mode objc-mode perl-mode)
+     (c-end-of-statement))
+    ((python-mode)
+     (if (not (py-goto-statement-below))
+         (progn
+           (search-forward ")" nil t)
+           (end-of-line))))
+
+    ;`c-end-of-statement' might be a good fallback for unknown languages,
+    ; but it occasionally fails badly, e.g. in `perl-mode'.
+    (otherwise
+     (end-of-line)))
   )
 
 
@@ -249,7 +273,7 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
   "Delete newlines, normalize whitespace, and/or move forward one character.
 Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators.
-(Except string literals and comments, they're left untouched.) Then advance
+Except string literals and comments, they're left untouched. Then advance
 point to next non-whitespace char."
   (cond
    ; if we're in a string literal or comment, skip to the end of it 
