@@ -40,23 +40,25 @@
 
 
 ; test harness. runs fillcode on the given input in a temp buffer in
-; python-mode - with the desired fill column, if provided - then compares the
-; results to the expected output.
+; python-mode - with the desired fill column and major mode, if provided -
+; then compares the results to the expected output.
 ;
 ; if the first character of the expected output is a newline, it's removed.
 ;
 ; returns the value returned from fillcode.
-(defun fillcode-test (input expected &optional desired-fill-column)
+(defun fillcode-test (input expected &optional desired-fill-column mode)
   (let ((expected-trimmed
          (if (eq ?\n (string-to-char expected))
              (substring expected 1)
-           expected)))
+           expected))
+        (mode
+         (if mode mode 'python-mode)))
     (with-temp-buffer
       (fundamental-mode)
       (if (auto-fill-mode nil)  ; turn off auto-fill-mode so that the input
           (auto-fill-mode nil)) ; string isn't automatically filled
       (insert-string input)
-      (python-mode-clean)       ; so that we know how to indent
+      (toggle-mode-clean mode)
       (beginning-of-buffer)
       (if desired-fill-column
           (setq fill-column desired-fill-column))
@@ -65,14 +67,18 @@
         ret))
   ))
 
-; set up python-mode appropriate for testing fillcode - plain vanilla (no
-; hooks), no tabs, basic-offset 2.
-(defun python-mode-clean ()
-  (setq
+; turn on the given major mode, set up so it's appropriate for testing
+; fillcode: plain vanilla (no hooks), no tabs, basic-offset 2.
+(defun toggle-mode-clean (mode)
+  (setq indent-tabs-mode nil
 ;;         c-basic-offset 2
-        indent-tabs-mode nil)
-  (let ((python-mode-hook nil))
-    (python-mode))
+        )
+  (let ((python-mode-hook nil)
+        (c-mode-common-hook nil)
+        (perl-mode-hook nil)
+        (shell-mode-hook nil)
+        (sql-mode-hook nil))
+    (funcall mode))
   (fillcode-mode))
 
 ; failure test harness. runs fillcode on the given input in a temp buffer, and
@@ -402,14 +408,35 @@ foo(\"bar + bar\" +
     baz +
     \"baj + baj\")" 12)
 
-  ;; literals should still be normalized *around*, though
-  (fillcode-test "foo(\"bar\",\"baz\")" "foo(\"bar\", \"baz\")")
+  (fillcode-test "foo(bar) # baz,baj" "foo(bar) # baz,baj" 16)
 
-  ;; comments aren't handled for now
-;;   (fillcode-test "foo(/* bar,baz */)" "foo(/* bar,baz */)" 6)
+  ;; TODO: test c and c++ comments, specifically the fillcode-in-literal code
+  ;; for detecting if point is on one of the first two chars of a c- or
+  ;; c++-style comment.
+;;   (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
+;; foo(bar,
+;;     /*baz ,baj*/,
+;;     bax)" 12 'java-mode)
+
 ;;   (fillcode-test "foo(bar, // baz, baj\nbax)" "
 ;; foo(bar,
 ;;     // baz, baj
-;;     bax)" 12)
+;;     bax)" 12 'java-mode)
+
+  ;; literals should still be normalized *around*, though
+  (fillcode-test "foo(\"bar\",\"baz\")" "foo(\"bar\", \"baz\")")
   )
 
+
+(defun inside-test (contents string point inside)
+  (with-temp-buffer
+    (insert-string contents)
+    (goto-char point)
+    (assert (eq inside (fillcode-inside string)))
+    ))
+
+(deftest inside
+  (inside-test "" "" 1 nil)
+  (inside-test "x" "" 1 nil)
+  (inside-test "" "x" 1 nil)
+  )

@@ -393,7 +393,7 @@ If there's no fill point on the current line, throws `no-fill-point'."
 
   (goto-char (1- (match-end 0)))
 
-  ; can't flil if we're in comments or string literals, or - if we're sticky -
+  ; can't fill if we're in comments or string literals, or - if we're sticky -
   ; in an open paren
   (if (or (fillcode-in-literal)
       ; can't fill at open parens if we're sticky. try again!
@@ -407,15 +407,61 @@ If there's no fill point on the current line, throws `no-fill-point'."
   "Return non-nil if inside a comment or string literal, nil otherwise.
 Determines whether point is inside a comment, string literal, or other segment
 that shouldn't be normalized or filled. Piggybacks on the major modes, since
-it will usually have its code for this."
-  (case major-mode
-    ((c-mode c++-mode java-mode objc-mode perl-mode python-mode)
-     (c-in-literal))
-    (otherwise
-     (c-in-literal)))
-  )
-    
-  
+it will usually have its code for this.
+
+Unfortunately, the major modes' in-literal functions (e.g. `c-in-literal' do
+*not* consider literals' start tokens (\", ', /*, //, #) to be part of the
+literal, so they return nil if point is on the start token.
+`fillcode-in-literal' returns non-nil instead."
+  (let ((in-literal-fn
+         (case major-mode
+           ((python-mode) 'py-in-literal)
+           (otherwise 'c-in-literal)))
+        (literal-start-tokens
+         (case major-mode
+           ((c-mode c++-mode java-mode objc-mode perl-mode)
+             '("\"" "'" "//" "/*"))
+            (otherwise '("#")))))
+;;         ((original-point (point))))
+;;         (in-literal
+;;          (funcall in-literal-fn)))
+
+    (or
+     (funcall in-literal-fn)
+     (eval (cons 'or
+                 (mapcar (lambda (x) (or (looking-at
+
+
+;;      (while not in-literal)
+;;        (dolist token literal-start-tokens in-literal
+             (
+;;      (looking-at comment-start-token-re)
+;;      (save-excursion
+;;        (backward-char)
+;;        (looking-at comment-start-token-re)))
+
+;;        (backward-char 2)  ; hard-coded max length for comment start tokens
+;;        (re-search-forward comment-start-token-re (end-of-buffer) t)
+;;        (if (and (funcall in-literal-fn)
+;;                 (> (point) original-point)
+;;                 (<= (point) (+ 2 original-point)))
+;;            'comment
+;;          nil)))
+    ))
+
+
+(defun fillcode-inside (str &optional moved)
+  "Return non-nil if point is on the given string.
+Here, \"on\" means that point is on any of the characters in the string."
+  (let ((moved (if moved moved 0)))
+    (condition-case nil
+        (if (< moved (length str))      ; base case
+            (or (equal str (buffer-substring (point) (+ (point) (length str))))
+                (save-excursion
+                  (backward-char)
+                  (inside str (1+ moved)))))
+      (error nil))
+      ))
 
 
 (provide 'fillcode)

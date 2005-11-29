@@ -18,16 +18,22 @@ foo(barbarbar   ,baz(x), baf)
 
 foo(bar==asdf+baz-baj/baf*bap)
 
-foo(bar +baz)
+qwert(asdf,baz,bar, baj)
+    foo();
 
-foo("bar + bar","baj + baj")
+foo(bar+baz);
 
-imgPath = imgPath.replace('\\','/');
+foo("bar + bar","baj + baj");
 
-foo(/* bar,baz */)
+// qwert
 
-foo(bar,
-baz)
+imgPath = imgPath.replace('\\','/')
+
+foo(asdfj, /* bar,baz */, basdf)
+"""
+qwert
+"""
+foo(ba) #qw,ert
 
 foo(bar) foo(baz,baj)
 
