@@ -378,8 +378,8 @@ foo(bar) foo(baz,
   )
 
 
-(deftest non-fill-point-chars
-  ;; make sure that tokens aren't normalized or filled at other special chars
+(deftest non-fill-points
+  ;; make sure that tokens aren't normalized or filled at other special tokens
   (fillcode-test "foo(bar.baz)" "foo(bar.baz)" 6)
   (fillcode-test "foo(bar_baz)" "foo(bar_baz)" 6)
   (fillcode-test "foo(bar%baz)" "foo(bar%baz)" 6)
@@ -391,6 +391,7 @@ foo(bar) foo(baz,
   (fillcode-test "foo(bar:baz)" "foo(bar:baz)" 6)
   (fillcode-test "foo(bar?baz)" "foo(bar?baz)" 6)
   (fillcode-test "foo(bar#baz)" "foo(bar#baz)" 6)
+  (fillcode-test "foo(bar->baz)" "foo(bar->baz)" 6)
   )
 
 (deftest literals

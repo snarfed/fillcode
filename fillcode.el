@@ -140,7 +140,7 @@ foo(bar, baz(
                  "[,/*+-]\\|"
                  "==\\|!=\\|||\\|&&\\|<=\\|>="
               "\\)"
-              "[^=/*+-]"
+              "[^=>/*+-]"
           "\\|"
           ; an open paren is a fill point only if it's not followed by a close
           ; paren
@@ -270,7 +270,11 @@ Calls the major mode's end-of-statement function, if it has one. Otherwise,
 for safety, just goes to the end of the line."
   (case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
-     (c-end-of-statement))
+     ; TODO: what do do about this? c-end-of-statement looks for a semicolon,
+     ; which is overly aggressive when you only want to fill a parenthesized
+     ; expression (e.g. an if () condition) or a function prototype.
+     ;(c-end-of-statement))
+     (end-of-line))
     ((python-mode)
      (if (not (py-goto-statement-below))
          (progn

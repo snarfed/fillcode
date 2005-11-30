@@ -31,6 +31,11 @@ foo("bar + bar","baj + baj");
 
 foo(bar, /*baz ,baj*/,    bax);
 
+
+
+foo(x->y)
+
+
 // qwert
 
 imgPath = imgPath.replace('\\','/');
