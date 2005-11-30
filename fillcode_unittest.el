@@ -393,16 +393,20 @@ foo(bar) foo(baz,
   (fillcode-test "foo(bar#baz)" "foo(bar#baz)" 6)
   )
 
-(deftest string-literals
+(deftest literals
   ;; string literals and comments should be kept intact and treated as single,
   ;; unbreakable tokens, not normalized or filled inside
   (fillcode-test "foo(\"bar,baz\")" "foo(\"bar,baz\")")
+  (fillcode-test "foo(\"bar,baz\")" "foo(\"bar,baz\")" 20 'java-mode)
+
   (fillcode-test "foo(\"bar,baz\")" "foo(\"bar,baz\")" 6)
-  (fillcode-test "foo('bar,baz')" "foo('bar,baz')" 6)
+  (fillcode-test "foo('bar,baz')" "foo('bar,baz')" 6 'java-mode)
+
   (fillcode-test "foo(\"bar\" + baz + \"baj\")" "
 foo(\"bar\" +
     baz +
     \"baj\")" 12)
+
   (fillcode-test "foo(\"bar + bar\" + baz + \"baj + baj\")" "
 foo(\"bar + bar\" +
     baz +

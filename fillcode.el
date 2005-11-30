@@ -53,6 +53,10 @@
 
 (defvar fillcode-version "0.1")
 
+; gnu emacs supports optional forms as the last arguments to
+; define-minor-mode; they're evaluated when the minor mode is enabled or
+; disabled. this is really nice, but xemacs' define-minor-mode doesn't have
+; it, so i have to advise the fillcode-mode function instead (below).
 (define-minor-mode fillcode-mode
   "Toggle fillcode mode.
 With no argument, this command toggles the mode. Non-null prefix argument
@@ -61,19 +65,19 @@ turns on the mode. Null prefix argument turns off the mode.
 Fillcode mode can intelligently fill some parts of source code, like function
 calls and definitions, in many languages.
 
-For more information, see http://snarfed.org/space/fillcode
-"
- ;; initial value
- nil
- ;; mode line indicator
- " Fillcode"
- ;; keymap
- nil
- ;; these forms run when fillcode-mode is enabled or disabled. the
- ;; fillcode-mode var is set before these forms run.
+For more information, see http://snarfed.org/space/fillcode"
+ nil         ;; initial value
+ " Fillcode" ;; mode line indicator
+ nil         ;; keymap
+ )
+
+(defadvice fillcode-mode (after fillcode-mode-setup-and-teardown)
+ ;; run these when fillcode-mode is enabled or disabled. the fillcode-mode var
+ ;; is set before these run.
  (make-local-variable              ;; The primary fill function. Fillcode only
   'fillcode-wrapped-fill-function) ;; runs if this returns nil.
  (make-local-variable 'fill-paragraph-function)
+
  (if fillcode-mode
      ; this runs when fillcode is enabled...
      (progn 
@@ -82,25 +86,30 @@ For more information, see http://snarfed.org/space/fillcode
          (setq fillcode-wrapped-fill-function nil))
        (setq fill-paragraph-function 'fillcode-fill-paragraph)
        (ad-activate 'c-fill-paragraph))
+
    ; ...and this runs when it's disabled.
    (progn
      (if (eq fill-paragraph-function 'fillcode-fill-paragraph)
          (setq fill-paragraph-function fillcode-wrapped-fill-function))
      (ad-deactivate 'c-fill-paragraph))
-   )
- )
+   ))
+
+(ad-activate 'fillcode-mode)
+
 
 (defadvice c-fill-paragraph (around fillcode-if-in-code)
-  "Fill code even in `cc-mode'.
+  "If in fillcode-mode, fill code when in `cc-mode'.
 
 `cc-mode' replaces `fill-paragraph' with its own function, `c-fill-paragraph',
 which only calls fill-paragraph if it's inside a comment or string literal, and
 narrows to that comment or string literal. Fillcode operates on code itself, so
 it needs a chance to run (without narrowing!), which this advice provides."
-  (let ((fill-paragraph-function nil))
-    ad-do-it)
-  (fillcode-fill-paragraph nil)
-  )
+ (if fillcode-mode
+     (progn
+       (let ((fill-paragraph-function nil))
+         ad-do-it)
+       (fillcode-fill-paragraph nil))
+  ))
 
 
 (defgroup fillcode nil
@@ -220,8 +229,8 @@ if it thinks the point is on a statement that has one."
   ; if this is a nested function call, and we filled, newline after next comma
 ;;   (if (and arg
 ;;            (save-excursion
-;;              (skip-chars-backward "^(" (line-beginning-position))
-;;              (eq (point) (line-beginning-position))))
+;;              (skip-chars-backward "^(" (point-at-bol))
+;;              (eq (point) (point-at-bol))))
 ;;       (progn
 ;;         (collapse-whitespace-forward)  ; move past close paren
 ;;         (if (equal "," (char-to-string (char-after)))
@@ -312,7 +321,7 @@ point to next non-whitespace char."
            (condition-case nil
                (progn (forward-char)
                       (re-search-backward fillcode-fill-point-re
-                                          (line-beginning-position)))
+                                          (point-at-bol)))
              (error nil)))
          (equal (point) (1- (match-end 0)))
          (not (save-excursion (backward-char) (fillcode-in-literal))))
@@ -383,7 +392,7 @@ We should fill if:
   ; operator...so, move forward one char before searching.
   (forward-char)
   (fillcode-find-fill-point-helper 're-search-backward
-                                   (line-beginning-position)))
+                                   (point-at-bol)))
 
 (defun fillcode-find-fill-point-helper (re-search-fn bound)
   "Move to the closest fill point on the current line.
