@@ -37,7 +37,8 @@
 ;; - make it compatible with auto-fill-mode. maybe by replacing
 ;;   newline-and-indent with (insert '\n') (newline-according-to-mode)?
 ;; - *don't fill* if cc-mode actually fills (ie if we were inside a comment)
-;; - handle c++-style comments better
+;; - handle c++ and python comments better. (the line after them doesn't get
+;;   indented.)
 
 ;; LCD Archive Entry:
 ;; fillcode|Ryan Barrett|fillcode@ryanb.org|
@@ -170,12 +171,17 @@ Intended to be set as fill-paragraph-function."
       ; if it does, don't do anything
       (if ret
           ret
-        ; if it doesn't, fill code
+        ; if it doesn't, fill. use the `filled' var to remember if we filled
+        ; anything, so we can correctly return t if we did, nil otherwise.
         (if (fillcode-beginning-of-statement)
-            (while (search-forward
-                    "(" (save-excursion (fillcode-end-of-statement) (point)) t)
-              (backward-char)
-              (fillcode))
+            (progn
+              (setq filled nil)
+              (while (search-forward
+                      "(" (save-excursion (fillcode-end-of-statement) (point)) t)
+                (backward-char)
+                (fillcode)
+                (setq filled t))
+              filled)
           nil)))
     ))
 
