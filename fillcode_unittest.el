@@ -392,6 +392,9 @@ foo(bar) foo(baz,
   (fillcode-test "foo(bar?baz)" "foo(bar?baz)" 6)
   (fillcode-test "foo(bar#baz)" "foo(bar#baz)" 6)
   (fillcode-test "foo(bar->baz)" "foo(bar->baz)" 6)
+  (fillcode-test "foo(bar *baz)" "foo(bar *baz)" 6)  ;; pointers in c and c++
+  (fillcode-test "foo(bar* baz)" "foo(bar* baz)" 6)
+  (fillcode-test "foo(bar*baz)" "foo(bar*baz)" 6)
   )
 
 (deftest literals

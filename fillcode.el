@@ -137,14 +137,20 @@ foo(bar, baz(
   ;; note that inside a [...] group, - is used to specify ranges...so
   ;; to match it itself, it has to be at the beginning or end.
   (concat "\\(\\("
-                 "[,/*+-]\\|"
+                 "[,/+-]\\|"
                  "==\\|!=\\|||\\|&&\\|<=\\|>="
               "\\)"
               "[^=>/*+-]"
           "\\|"
           ; an open paren is a fill point only if it's not followed by a close
           ; paren
-          "([^)]\\)")
+          "([^)]\\)"
+          "\\|"
+          ; asterisks are used as pointers in c and c++, so to be
+          ; conservative, they're only fill points if they're surrounded by
+          ; whitespace
+          "\\ \\*\\ "
+          )
   "A regular expression used to find the next fill point.
 A fill point is a point in an expression where a newline can reasonably be
 inserted. This regular expression identifies fill points. It must end one
