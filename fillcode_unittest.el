@@ -413,14 +413,16 @@ foo(\"bar + bar\" +
   ;; TODO: test c and c++ comments, specifically the fillcode-in-literal code
   ;; for detecting if point is on one of the first two chars of a c- or
   ;; c++-style comment.
-;;   (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
-;; foo(bar,
-;;     /*baz ,baj*/,
-;;     bax)" 12 'java-mode)
+  (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
+foo(bar,
+    /*baz ,baj*/,
+    bax)" 12 'java-mode)
 
-;;   (fillcode-test "foo(bar, // baz, baj\nbax)" "
-;; foo(bar,
-;;     // baz, baj
+;;   (fillcode-test "
+;; foo(// bar, baz
+;;    bajbaj, bax)" "
+;; foo(// bar, baz
+;;     bajbaj,
 ;;     bax)" 12 'java-mode)
 
   ;; literals should still be normalized *around*, though
@@ -432,11 +434,48 @@ foo(\"bar + bar\" +
   (with-temp-buffer
     (insert-string contents)
     (goto-char point)
-    (assert (eq inside (fillcode-inside string)))
+    (assert-equal inside (fillcode-inside string)
+                  (concat "buffer: " contents ", string: " string))
     ))
 
 (deftest inside
+  ; base cases
   (inside-test "" "" 1 nil)
-  (inside-test "x" "" 1 nil)
-  (inside-test "" "x" 1 nil)
+  (inside-test "a" "" 1 nil)
+  (inside-test "ab" "" 1 nil)
+  (inside-test "" "a" 1 nil)
+  (inside-test "" "ab" 1 nil)
+
+  ; one-char tests
+  (inside-test "b" "a" 1 nil)
+  (inside-test "a" "a" 1 t)
+  (inside-test "ab" "a" 1 t)
+  (inside-test "ab" "a" 2 nil)
+  (inside-test "ba" "a" 1 nil)
+  (inside-test "ba" "a" 2 t)
+  (inside-test "aba" "a" 1 t)
+  (inside-test "aba" "a" 2 nil)
+  (inside-test "aba" "a" 3 t)
+  (inside-test "aba" "b" 1 nil)
+  (inside-test "aba" "b" 2 t)
+  (inside-test "aba" "b" 3 nil)
+
+  ; multiple-char tests
+  (inside-test "ab" "ab" 1 t)
+  (inside-test "ab" "ab" 2 t)
+  (inside-test "ac" "ab" 1 nil)
+  (inside-test "ac" "ab" 2 nil)
+  (inside-test "cb" "ab" 1 nil)
+  (inside-test "cb" "ab" 2 nil)
+
+  (inside-test "abc" "ab" 1 t)
+  (inside-test "abc" "ab" 2 t)
+  (inside-test "abc" "ab" 3 nil)
+  (inside-test "abc" "bc" 1 nil)
+  (inside-test "abc" "bc" 2 t)
+  (inside-test "abc" "bc" 3 t)
+
+  (inside-test "abc" "abc" 1 t)
+  (inside-test "abc" "abc" 2 t)
+  (inside-test "abc" "abc" 3 t)
   )

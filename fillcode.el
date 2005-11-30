@@ -27,16 +27,17 @@
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; TODO:
+;; - fill expressions outside parentheses
 ;; - somehow include the assignment = operator and <, > in
 ;;   fillcode-fill-point-re. (how to handle <, > with e.g. templates?!?)
 ;; - if first arg doesn't pass fill-column, but next one does, newline first
 ;;   (maybe option for preferring first arg on first line or on next line?)
 ;; - add beginning-of-statement fns for more languages
-;; - fill things besides function calls, eg arithmetic expressions, string
-;;   constants (language specific, ick), java throws clauses
 ;; - make it compatible with filladapt-mode
-;; - if point is at beginning of line, it fills *last* line. if last line has
-;;   empty function call, it infinite loops (!)
+;; - make it compatible with auto-fill-mode. maybe by replacing
+;;   newline-and-indent with (insert '\n') (newline-according-to-mode)?
+;; - *don't fill* if cc-mode actually fills (ie if we were inside a comment)
+;; - handle c++-style comments better
 
 ;; LCD Archive Entry:
 ;; fillcode|Ryan Barrett|fillcode@ryanb.org|
@@ -130,7 +131,7 @@ foo(bar, baz(
                  "[,/*+-]\\|"
                  "==\\|!=\\|||\\|&&\\|<=\\|>="
               "\\)"
-              "[^=+-]"
+              "[^=/*+-]"
           "\\|"
           ; an open paren is a fill point only if it's not followed by a close
           ; paren
@@ -307,7 +308,8 @@ point to next non-whitespace char."
                       (re-search-backward fillcode-fill-point-re
                                           (line-beginning-position)))
              (error nil)))
-         (equal (point) (1- (match-end 0))))
+         (equal (point) (1- (match-end 0)))
+         (not (save-excursion (backward-char) (fillcode-in-literal))))
     (progn (fixup-whitespace) (forward-char)))
 
    ; ...otherwise, base case: advance one char
@@ -338,68 +340,65 @@ We should fill if:
    ; fill point on this line?
    (save-excursion
      (catch 'no-fill-point
-       (fillcode-find-fill-point)
+       (fillcode-find-fill-point-backward)
        t))
    ))
 
 
-(defun fillcode-find-fill-point ()
-  "Move point to the closest fill point on the current line.
-Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
-eventually arithmetic operators, ||s, &&s, etc. This function attempts to find
-the closest fill point that's before point and before `fill-column'. If there
-are no appropriate fill points before point, it settles for the closest one
-after point.
+;; (defun fillcode-find-fill-point ()
+;;   "Move point to the closest fill point on the current line.
+;; Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
+;; eventually arithmetic operators, ||s, &&s, etc. This function attempts to find
+;; the closest fill point that's before point and before `fill-column'. If there
+;; are no appropriate fill points before point, it settles for the closest one
+;; after point.
 
-If there's no fill point on the current line, throws `no-fill-point'."
-  (fillcode-find-fill-point-backward)
+;; If there's no fill point on the current line, throws `no-fill-point'."
+;;   (move-to-column fill-column)
 
-  ; will this work? if we're still beyond fill column, nope, try again!
-  (if (>= (current-column) fill-column)
-      (progn
-        (goto-char (1- (match-beginning 0)))
-        (if (not (catch 'no-fill-point
-                   (fillcode-find-fill-point-backward)
-                   t))
-            ; no fill point before this one! take the closest one after
-            (fillcode-find-fill-point-forward))
-        ))
-  )
+;;   (if (not (catch 'no-fill-point
+;;              (fillcode-find-fill-point-backward)   
+;; ;;              (if (>= (current-column) fill-column)
+;;                  ; we started before fill-column. how'd we end up after it?!?
+;; ;;                  (throw 'find-fill-point-backward-moved-past-fill-column nil))
+;;              t))
+;;       ; no fill point before fill-column! take the closest one after.
+;;       (fillcode-find-fill-point-forward))
+
+;; ;;   (goto-char (1- (match-beginning 0)))
+;;   )
 
 
-(defun fillcode-find-fill-point-forward ()
-  (fillcode-find-fill-point-helper t))
+;; (defun fillcode-find-fill-point-forward ()
+;;   (fillcode-find-fill-point-helper 're-search-forward (line-end-position)))
 
 (defun fillcode-find-fill-point-backward ()
   ; the fill point regexp ends at the first char *after* the
   ; operator...so, move forward one char before searching.
   (forward-char)
-  (fillcode-find-fill-point-helper nil))
+  (fillcode-find-fill-point-helper 're-search-backward
+                                   (line-beginning-position)))
 
-(defun fillcode-find-fill-point-helper (forward)
+(defun fillcode-find-fill-point-helper (re-search-fn bound)
   "Move to the closest fill point on the current line.
 Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
 eventually arithmetic operators, ||s, &&s, etc. This function finds the
 closest one either before or after point, depending on `forward'.
 
 If there's no fill point on the current line, throws `no-fill-point'."
-  (let ((re-search-fn
-         (if forward 're-search-forward 're-search-backward))
-        (bound
-         (if forward (line-end-position) (line-beginning-position))))
-    (condition-case nil
-        (funcall re-search-fn fillcode-fill-point-re bound)
-      (search-failed (throw 'no-fill-point nil))))
+  (condition-case nil
+      (funcall re-search-fn fillcode-fill-point-re bound)
+    (search-failed (throw 'no-fill-point nil)))
 
   (goto-char (1- (match-end 0)))
 
-  ; can't fill if we're in comments or string literals, or - if we're sticky -
-  ; in an open paren
+  ; can't fill if we're in or immediately after a comment or string literal,
+  ; or - if we're sticky - in an open paren.
   (if (or (fillcode-in-literal)
-      ; can't fill at open parens if we're sticky. try again!
           (and fillcode-open-paren-sticky
-               (equal "(" (substring (match-string 0) 0 1))))
-      (fillcode-find-fill-point-helper forward))
+               (equal "(" (substring (match-string 0) 0 1)))
+          (save-excursion (backward-char) (fillcode-in-literal)))
+      (fillcode-find-fill-point-helper re-search-fn bound))
   )
 
 
@@ -411,7 +410,8 @@ it will usually have its code for this.
 
 Unfortunately, the major modes' in-literal functions (e.g. `c-in-literal' do
 *not* consider literals' start tokens (\", ', /*, //, #) to be part of the
-literal, so they return nil if point is on the start token.
+literal, so they return nil if point is on the start token. We want them to
+return non-nil if we're past the first char of the start token, so
 `fillcode-in-literal' returns non-nil instead."
   (let ((in-literal-fn
          (case major-mode
@@ -420,33 +420,18 @@ literal, so they return nil if point is on the start token.
         (literal-start-tokens
          (case major-mode
            ((c-mode c++-mode java-mode objc-mode perl-mode)
-             '("\"" "'" "//" "/*"))
-            (otherwise '("#")))))
-;;         ((original-point (point))))
-;;         (in-literal
-;;          (funcall in-literal-fn)))
+            '("//" "/*"))
+           (otherwise
+            '()))))
 
     (or
+     ; are we in a literal?
      (funcall in-literal-fn)
-     (eval (cons 'or
-                 (mapcar (lambda (x) (or (looking-at
-
-
-;;      (while not in-literal)
-;;        (dolist token literal-start-tokens in-literal
-             (
-;;      (looking-at comment-start-token-re)
-;;      (save-excursion
-;;        (backward-char)
-;;        (looking-at comment-start-token-re)))
-
-;;        (backward-char 2)  ; hard-coded max length for comment start tokens
-;;        (re-search-forward comment-start-token-re (end-of-buffer) t)
-;;        (if (and (funcall in-literal-fn)
-;;                 (> (point) original-point)
-;;                 (<= (point) (+ 2 original-point)))
-;;            'comment
-;;          nil)))
+     ; are we in any of the literal start tokens?
+     (eval (cons 'or (mapcar (lambda (x)
+                               (equal x (buffer-substring
+                                         (1- (point)) (1+ (point)))))
+                             literal-start-tokens))))
     ))
 
 
@@ -456,10 +441,13 @@ Here, \"on\" means that point is on any of the characters in the string."
   (let ((moved (if moved moved 0)))
     (condition-case nil
         (if (< moved (length str))      ; base case
-            (or (equal str (buffer-substring (point) (+ (point) (length str))))
+            (or (equal str
+                       (buffer-substring (point)
+                                         (min (+ (point) (length str))
+                                              (point-max))))
                 (save-excursion
                   (backward-char)
-                  (inside str (1+ moved)))))
+                  (fillcode-inside str (1+ moved)))))
       (error nil))
       ))
 
