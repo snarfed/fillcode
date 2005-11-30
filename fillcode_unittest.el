@@ -414,14 +414,12 @@ foo(\"bar + bar\" +
 
   (fillcode-test "foo(bar) # baz,baj" "foo(bar) # baz,baj" 16)
 
-  ;; TODO: test c and c++ comments, specifically the fillcode-in-literal code
-  ;; for detecting if point is on one of the first two chars of a c- or
-  ;; c++-style comment.
   (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
 foo(bar,
     /*baz ,baj*/,
     bax)" 12 'java-mode)
 
+  ;; TODO: get c++ comments working
 ;;   (fillcode-test "
 ;; foo(// bar, baz
 ;;    bajbaj, bax)" "

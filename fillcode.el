@@ -36,7 +36,6 @@
 ;; - make it compatible with filladapt-mode
 ;; - make it compatible with auto-fill-mode. maybe by replacing
 ;;   newline-and-indent with (insert '\n') (newline-according-to-mode)?
-;; - *don't fill* if cc-mode actually fills (ie if we were inside a comment)
 ;; - handle c++ and python comments better. (the line after them doesn't get
 ;;   indented.)
 

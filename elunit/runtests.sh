@@ -1,11 +1,25 @@
 #!/bin/bash
+#
+# Run the fillcode unit tests.
+#
+# This script assumes that it's running inside a directory hierarchy that
+# looks like this:
+#
+# fillcode.el
+# fillcode_unittest.el
+# elunit/
+#     |- elunit.el
+#     |- runtests.sh
 
+DIR=`dirname $0`/..
 TESTED=0
+
+cd $DIR
 
 for prog in emacs xemacs; do
     if which $prog >& /dev/null; then
         $prog -version 2> /dev/null | head -n 2
-        exec $prog --batch -q -l fillcode_unittest.el \
+        exec $prog --batch -q -l "fillcode_unittest.el" \
             --eval '(progn (elunit-run (list "fillcode_unittest.el"))
                            (switch-to-buffer "*Elunit Result*")
                            (message (buffer-string)))' \
