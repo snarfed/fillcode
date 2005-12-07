@@ -34,15 +34,12 @@
 ;;   (maybe option for preferring first arg on first line or on next line?)
 ;; - add beginning-of-statement fns for more languages
 ;; - make it compatible with filladapt-mode
-;; - make it compatible with auto-fill-mode. maybe by replacing
-;;   newline-and-indent with (insert '\n') (newline-according-to-mode)?
 ;; - handle c++ and python comments better. (the line after them doesn't get
 ;;   indented.)
-
-;; LCD Archive Entry:
-;; fillcode|Ryan Barrett|fillcode@ryanb.org|
-;; Minor mode to fill function calls and other parts of source code|
-;; 7-September-2005|0.1|~/packages/fillcode.el|
+;; - fix foo(bar, /*baz ,baj*/, bax) unit test! (it only fails if it doesn't
+;;   use my ~/.emacs, ie with emacs -q. with my .emacs, it passes. without my
+;;   .emacs, c-beginning-of-statement returns nil; with my .emacs, it does the
+;;   same thing but returns t.
 
 
 (require 'cl)  ; for the case macro
@@ -190,8 +187,7 @@ Intended to be set as fill-paragraph-function."
         (if (fillcode-beginning-of-statement)
             (progn
               (setq filled nil)
-              (while (search-forward
-                      "(" (save-excursion (fillcode-end-of-statement) (point)) t)
+              (while (search-forward "(" (fillcode-end-of-statement) t)
                 (backward-char)
                 (fillcode)
                 (setq filled t))
@@ -220,7 +216,8 @@ if it thinks the point is on a statement that has one."
         (if (fillcode-should-fill)
             (progn
               (fillcode-find-fill-point-backward)
-              (newline-and-indent)))
+              (insert "\n")
+              (indent-according-to-mode)))
         ; open parenthesis is our recursive step; recurse!
         (if (equal c "(")
             (fillcode))
@@ -271,26 +268,29 @@ it occasionally fails badly, e.g. in `perl-mode' in some cases."
 
 
 (defun fillcode-end-of-statement ()
-  "Go to the end of the statement that point is currently in.
-Calls the major mode's end-of-statement function, if it has one. Otherwise,
-for safety, just goes to the end of the line."
+  "Return the end position of the statement that point is currently in.
+Uses the major mode's end-of-statement function, if it has one. Otherwise,
+for safety, just uses the end of the line."
   (case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
      ; TODO: what do do about this? c-end-of-statement looks for a semicolon,
      ; which is overly aggressive when you only want to fill a parenthesized
      ; expression (e.g. an if () condition) or a function prototype.
      ;(c-end-of-statement))
-     (end-of-line))
+     (point-at-eol))
+
     ((python-mode)
-     (if (not (py-goto-statement-below))
-         (progn
-           (search-forward ")" nil t)
-           (end-of-line))))
+     (save-excursion
+       (let ((start (point)))
+         (if (py-goto-statement-below)
+             (search-backward ")" start 'p)
+           (forward-char))
+           (point-at-eol))))
 
     ;`c-end-of-statement' might be a good fallback for unknown languages,
     ; but it occasionally fails badly, e.g. in `perl-mode'.
     (otherwise
-     (end-of-line)))
+     (point-at-eol)))
   )
 
 
@@ -334,7 +334,10 @@ point to next non-whitespace char."
              (error nil)))
          (equal (point) (1- (match-end 0)))
          (not (save-excursion (backward-char) (fillcode-in-literal))))
-    (progn (fixup-whitespace) (forward-char)))
+    (progn (fixup-whitespace)
+           ; skip *past* the char we were on originally. if we inserted a
+           ; space, that's two chars forward, otherwise just one.
+           (forward-char (if (looking-at " ") 2 1))))
 
    ; ...otherwise, base case: advance one char
    (t (forward-char))

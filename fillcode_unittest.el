@@ -103,8 +103,7 @@
   (fillcode-test "foo(\n\n)" "foo()")
 
   ;; should know when to stop even if parenthetical expression is blank
-  (fillcode-test "foo()\nbar( )" "foo()\nbar( )")
-
+  (fillcode-test "foo() bar( )" "foo() bar()")
   )
 
 (deftest paren-whitespace
@@ -418,10 +417,10 @@ foo(\"bar + bar\" +
 
   (fillcode-test "foo(bar) # baz,baj" "foo(bar) # baz,baj" 16)
 
-  (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
+   (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
 foo(bar,
     /*baz ,baj*/,
-    bax)" 12 'java-mode)
+    bax)" 6 'java-mode)
 
   ;; TODO: get c++ comments working
 ;;   (fillcode-test "
@@ -434,6 +433,16 @@ foo(bar,
   ;; literals should still be normalized *around*, though
   (fillcode-test "foo(\"bar\",\"baz\")" "foo(\"bar\", \"baz\")")
   )
+
+(deftest fillcode-end-of-statement
+  ; point is at the beginning of the buffer, so *only* the first statement
+  ; should be filled
+  (fillcode-test "foo(y)\nbar( x)" "foo(y)\nbar( x)")
+
+  ; open parens after fill points shouldn't trip us up
+  (fillcode-test "foo(x, (y))\nbar( x)" "foo(x, (y))\nbar( x)")
+  )
+
 
 
 (defun inside-test (contents string point inside)
@@ -485,3 +494,10 @@ foo(bar,
   (inside-test "abc" "abc" 2 t)
   (inside-test "abc" "abc" 3 t)
   )
+
+;; (deftest qwert
+;;    (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
+;; foo(bar,
+;;     /*baz ,baj*/,
+;;     bax)" 6 'java-mode)
+;; )
