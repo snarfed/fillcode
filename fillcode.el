@@ -1,4 +1,4 @@
-;; fillcode.el --- Fillcode minor mode
+;;; fillcode.el --- Fillcode minor mode
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
@@ -168,31 +168,46 @@ unfortunately absent."
 
 
 (defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
-  "Fill code at point if fillcode-wrapped-fill-function is nil.
+  "Fill code at point if `fillcode-wrapped-fill-function' is nil.
 
-If fillcode-wrapped-fill-function is nil, fills code. If it's non-nil, runs it
-first, and only fills code if it returns nil.
+If `fillcode-wrapped-fill-function' is nil, fills code. If it's
+non-nil, runs it first, and only fills code if it returns nil.
 
-Intended to be set as fill-paragraph-function."
+Intended to be set as `fill-paragraph-function'."
   (save-excursion
-    ; first, see if the original fill function does anything
-    (let ((ret (if fillcode-wrapped-fill-function
-                   (apply fillcode-wrapped-fill-function arg)
-                 nil)))
-      ; if it does, don't do anything
+    ; first, consider calling the wrapped fill function
+    (let ((ret
+           (cond
+            ; if we're in cc-mode, this was called by the `c-fill-paragraph'
+            ; advice. so, don't call it again, it'd recurse infinitely.
+            ((eq fillcode-wrapped-fill-function 'c-fill-paragraph)
+             nil)
+            ; `python-fill-paragraph' in CVS Emacs' python.el always returns
+            ; t (grr!), so instead of looking at its return value, we fill if
+            ; the end of the line is not in a comment or string literal
+            ((and (eq major-mode 'python-mode)
+                  (not (save-excursion (end-of-line) (fillcode-in-literal))))
+             nil)
+            ; otherwise, if it's set, call the wrapped fill function
+            (fillcode-wrapped-fill-function
+             (funcall fillcode-wrapped-fill-function arg))
+            )))
+
+
+      ; if the wrapped fill function did something, don't do anything more
       (if ret
           ret
-        ; if it doesn't, fill. use the `filled' var to remember if we filled
+        ; otherwise, fill. use the `filled' var to remember if we filled
         ; anything, so we can correctly return t if we did, nil otherwise.
-        (if (fillcode-beginning-of-statement)
-            (progn
-              (setq filled nil)
-              (while (search-forward "(" (fillcode-end-of-statement) t)
-                (backward-char)
-                (fillcode)
-                (setq filled t))
-              filled)
-          nil)))
+        (progn
+          (fillcode-beginning-of-statement)
+          (setq filled nil)
+          (while (search-forward "(" (fillcode-end-of-statement) t)
+            (backward-char)
+            (fillcode)
+            (setq filled t))
+          filled)
+        ))
     ))
 
 
@@ -251,16 +266,18 @@ if it thinks the point is on a statement that has one."
   "Go to the beginning of the statement that point is currently in.
 Calls the major mode's beginning-of-statement function, if it has one.
 Otherwise, for safety, just goes to the beginning of the line.
-
-`c-beginning-of-statement' might be a good fallback for unknown languages, but
-it occasionally fails badly, e.g. in `perl-mode' in some cases."
+"
   (case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
-     (c-beginning-of-statement))
+     ; if we're at the beginning of the statement, `c-beginning-of-statement-1'
+     ; will go to the *previous* statement. so go to the end of the line first.
+     (end-of-line) (c-beginning-of-statement-1) (beginning-of-line))
     ((python-mode)
-     (py-goto-statement-at-or-above))
+     (if (functionp 'py-goto-statement-at-or-above)
+         (py-goto-statement-at-or-above)
+       (progn (python-beginning-of-statement) t)))
 
-    ;`c-beginning-of-statement' might be a good fallback for unknown
+    ;`c-beginning-of-statement-1' might be a good fallback for unknown
     ;languages, but it occasionally fails badly, e.g. in `perl-mode'.
     (otherwise
      (beginning-of-line)))  ; default
@@ -282,7 +299,8 @@ for safety, just uses the end of the line."
     ((python-mode)
      (save-excursion
        (let ((start (point)))
-         (if (py-goto-statement-below)
+         (if (if (functionp 'py-goto-statement-below)
+                 (py-goto-statement-below) (python-next-statement))
              (search-backward ")" start 'p)
            (forward-char))
            (point-at-eol))))
@@ -442,7 +460,8 @@ return non-nil if we're past the first char of the start token, so
 `fillcode-in-literal' returns non-nil instead."
   (let ((in-literal-fn
          (case major-mode
-           ((python-mode) 'py-in-literal)
+           ((python-mode) (if (functionp 'py-in-literal)
+                              'py-in-literal 'python-in-string/comment))
            (otherwise 'c-in-literal)))
         (literal-start-tokens
          (case major-mode
@@ -457,7 +476,8 @@ return non-nil if we're past the first char of the start token, so
      ; are we in any of the literal start tokens?
      (eval (cons 'or (mapcar (lambda (x)
                                (equal x (buffer-substring
-                                         (1- (point)) (1+ (point)))))
+                                         (max (1- (point)) (point-min))
+                                         (min (1+ (point)) (point-max)))))
                              literal-start-tokens))))
     ))
 

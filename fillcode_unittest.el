@@ -39,24 +39,30 @@
     ))
 
 
-; test harness. runs fillcode on the given input in a temp buffer in
-; python-mode - with the desired fill column and major mode, if provided -
-; then compares the results to the expected output.
+; test harness. runs fillcode on the given input in a temp buffer, once in
+; python mode and once in java mode. before running it in java mode, it
+; appends ; to the input string. the fill column is set to desired-fill-columnm
+; if provided.
 ;
-; if the first character of the expected output is a newline, it's removed.
+; then, asserts that the results equal the expected output. (if the first
+; character of the expected output is a newline, it's removed.)
 ;
 ; returns the value returned from fillcode.
-(defun fillcode-test (input expected &optional desired-fill-column mode)
+(defun fillcode-test (input expected &optional desired-fill-column)
+  (fillcode-test-in-mode input expected
+                         'python-mode desired-fill-column)
+  (fillcode-test-in-mode (concat input ";") (concat expected ";")
+                         'java-mode desired-fill-column)
+  )
+
+;; actually set up the buffer, run fillcode, and check the output
+(defun fillcode-test-in-mode (input expected mode desired-fill-column)
   (let ((expected-trimmed
          (if (eq ?\n (string-to-char expected))
              (substring expected 1)
-           expected))
-        (mode
-         (if mode mode 'python-mode)))
+           expected)))
     (with-temp-buffer
-      (fundamental-mode)
-      (if (auto-fill-mode nil)  ; turn off auto-fill-mode so that the input
-          (auto-fill-mode nil)) ; string isn't automatically filled
+      (toggle-mode-clean 'fundamental-mode)
       (insert-string input)
       (toggle-mode-clean mode)
       (beginning-of-buffer)
@@ -65,20 +71,20 @@
       (let ((ret (fillcode-fill-paragraph nil)))
         (assert-equal expected-trimmed (buffer-string))
         ret))
-  ))
+    ))
 
 ; turn on the given major mode, set up so it's appropriate for testing
 ; fillcode: plain vanilla (no hooks), no tabs, basic-offset 2.
 (defun toggle-mode-clean (mode)
-  (setq indent-tabs-mode nil
-;;         c-basic-offset 2
-        )
   (let ((python-mode-hook nil)
         (c-mode-common-hook nil)
         (perl-mode-hook nil)
         (shell-mode-hook nil)
         (sql-mode-hook nil))
     (funcall mode))
+  (setq indent-tabs-mode nil
+;;         c-basic-offset 2
+        )
   (fillcode-mode))
 
 ; failure test harness. runs fillcode on the given input in a temp buffer, and
@@ -226,8 +232,9 @@ foo(
 foo(barbar,
     baz(baj))" 13)
 
-  (fillcode-test "foo(barbar(baz))" "foo(barbar(
-    baz))" 12)
+  (fillcode-test "foo(barbar(baz))" "
+foo(barbar(
+           baz))" 12)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -389,7 +396,7 @@ foo(bar) foo(baz,
   (fillcode-test "foo(bar!baz)" "foo(bar!baz)" 6)
   (fillcode-test "foo(bar:baz)" "foo(bar:baz)" 6)
   (fillcode-test "foo(bar?baz)" "foo(bar?baz)" 6)
-  (fillcode-test "foo(bar#baz)" "foo(bar#baz)" 6)
+  (fillcode-test-in-mode "foo(bar#baz);" "foo(bar#baz);" 'java-mode 6)
   (fillcode-test "foo(bar->baz)" "foo(bar->baz)" 6)
   (fillcode-test "foo(bar *baz)" "foo(bar *baz)" 6)  ;; pointers in c and c++
   (fillcode-test "foo(bar* baz)" "foo(bar* baz)" 6)
@@ -400,10 +407,10 @@ foo(bar) foo(baz,
   ;; string literals and comments should be kept intact and treated as single,
   ;; unbreakable tokens, not normalized or filled inside
   (fillcode-test "foo(\"bar,baz\")" "foo(\"bar,baz\")")
-  (fillcode-test "foo(\"bar,baz\")" "foo(\"bar,baz\")" 20 'java-mode)
+  (fillcode-test-in-mode "foo(\"bar,baz\")" "foo(\"bar,baz\")" 'java-mode 20)
 
   (fillcode-test "foo(\"bar,baz\")" "foo(\"bar,baz\")" 6)
-  (fillcode-test "foo('bar,baz')" "foo('bar,baz')" 6 'java-mode)
+  (fillcode-test-in-mode "foo('bar,baz')" "foo('bar,baz')" 'java-mode 6)
 
   (fillcode-test "foo(\"bar\" + baz + \"baj\")" "
 foo(\"bar\" +
@@ -415,20 +422,26 @@ foo(\"bar + bar\" +
     baz +
     \"baj + baj\")" 12)
 
-  (fillcode-test "foo(bar) # baz,baj" "foo(bar) # baz,baj" 16)
+  ; don't fill whole-line comments (# and //)
+  (fillcode-test-in-mode "foo(bar) // baz, baj" "foo(bar) // baz, baj"
+                         'java-mode 16)
+  ; emacs 21's python.el doesn't set `fill-paragraph-function', so it doesn't
+  ; fill this line...but emacs 22's python.el does. i haven't yet figured out
+  ; how to make this test portable. :/
+;;   (fillcode-test "foo(bar) # baz, baj" "foo(bar) # baz, baj" 16)
 
-   (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
+   (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax)" "
 foo(bar,
     /*baz ,baj*/,
-    bax)" 6 'java-mode)
+    bax)" 'java-mode 6)
 
   ;; TODO: get c++ comments working
-;;   (fillcode-test "
+;;   (fillcode-test-in-mode "
 ;; foo(// bar, baz
 ;;    bajbaj, bax)" "
 ;; foo(// bar, baz
 ;;     bajbaj,
-;;     bax)" 12 'java-mode)
+;;     bax)" 'java-mode 12)
 
   ;; literals should still be normalized *around*, though
   (fillcode-test "foo(\"bar\",\"baz\")" "foo(\"bar\", \"baz\")")
@@ -494,10 +507,3 @@ foo(bar,
   (inside-test "abc" "abc" 2 t)
   (inside-test "abc" "abc" 3 t)
   )
-
-;; (deftest qwert
-;;    (fillcode-test "foo(bar, /*baz ,baj*/, bax)" "
-;; foo(bar,
-;;     /*baz ,baj*/,
-;;     bax)" 6 'java-mode)
-;; )

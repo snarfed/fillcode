@@ -1,6 +1,17 @@
 # -*- mode: python; fill-column: 12 -*-
+#
+# to make the tar.gz package:
+#
+# ln -s . fillcode
+# tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
+#  --exclude fillcode/fillcode fillcode
+# rm -f fillcode
+
 
 ab
+
+foo(
+)
 
 foo(bar, baz)
 
@@ -63,3 +74,43 @@ BufferedWriter bW = new BufferedWriter(new FileWriter(albumDir_.getPath()+xyz+bi
 
 
 bW.write("<html><body><div align=center><table border=1>\n"+"<tr><td colspan=3><div align=center><img src=\""+currImg+"\"></div></td></tr>\n""<tr><td><div align=center><a href=\""+prevImg+".html"+"\"><img src=\""+THUMB_PREFIX+prevImg+"\"><br>The One Before</a></div></td>"+"<td><a href=\""+bigImg+"\"><div align=center>The Full Size Version</a></div></td>"+"<td><div align=center><a href=\""+nextImg+".html"+"\"><img src=\""+THUMB_PREFIX+nextImg+"\"><br>The Next One</a></div></td></tr>"+"</table></div></body></html>");
+
+
+foo(bar.baz)
+foo(bar_baz)
+foo(bar%baz)
+foo(bar$baz)
+foo(bar~baz)
+foo(bar`baz)
+foo(bar@baz)
+foo(bar!baz)
+foo(bar:baz)
+foo(bar?baz)
+foo(bar#baz)
+foo(bar->baz)
+foo(bar *baz)
+foo(bar* baz)
+foo(bar*baz)
+
+
+foo("bar,baz")
+foo("bar,baz")
+foo("bar,baz")
+foo('bar,baz')
+foo("bar" + baz + "baj")
+foo("bar" +
+    baz +
+    "baj")
+foo("bar + bar" + baz + "baj + baj")
+
+foo( bar ) # x
+
+  foo(bar);
+
+// brain dump: why doesn't this fill?!?
+foo(bar, /*baz ,baj*/, bax);
+
+foo(bar,
+    /*baz ,baj*/,
+    bax);
+foo("bar","baz")
