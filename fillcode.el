@@ -37,12 +37,12 @@
 ;; - fillcode still fills previous statement in cc-mode multi-line comments
 ;; - if non-sticky, first arg goes to next line but indents to same place! boo.
 
+(defconst fillcode-version "0.2")
+
 (require 'cl)  ; for the case macro
 
 (require 'cc-bytecomp)  ; for c-in-literal and c-literal-limits
 (cc-require 'cc-engine)
-
-(defvar fillcode-version "0.1")
 
 ; gnu emacs supports optional forms as the last arguments to
 ; define-minor-mode; they're evaluated when the minor mode is enabled or
@@ -56,11 +56,18 @@ turns on the mode. Null prefix argument turns off the mode.
 Fillcode mode can intelligently fill some parts of source code, like function
 calls and definitions, in many languages.
 
+To see what version of fillcode you are running, enter `\\[fillcode-version]'.
+
 For more information, see http://snarfed.org/space/fillcode"
  nil         ;; initial value
  " Fillcode" ;; mode line indicator
  nil         ;; keymap
  )
+
+(defun fillcode-version ()
+  "Echo the current version of fillcode mode in the minibuffer."
+  (interactive)
+  (message "Using fillcode mode version %s" fillcode-version))
 
 (defadvice fillcode-mode (after fillcode-mode-setup-and-teardown)
  ;; run these when fillcode-mode is enabled or disabled. the fillcode-mode var
