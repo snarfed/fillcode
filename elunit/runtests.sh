@@ -16,10 +16,10 @@ TESTED=0
 
 cd $DIR
 
-for prog in emacs xemacs; do
+for prog in emacs xemacs  ~/emacs/src/emacs ~/xemacs/src/xemacs; do
     if which $prog >& /dev/null; then
         $prog -version 2> /dev/null | head -n 2
-        exec $prog --batch -q -l "fillcode_unittest.el" \
+        exec $prog --batch -l "fillcode_unittest.el" \
             --eval '(progn (elunit-run (list "fillcode_unittest.el"))
                            (switch-to-buffer "*Elunit Result*")
                            (message (buffer-string)))' \

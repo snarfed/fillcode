@@ -30,17 +30,12 @@
 ;; - fill expressions outside parentheses
 ;; - somehow include the assignment = operator and <, > in
 ;;   fillcode-fill-point-re. (how to handle <, > with e.g. templates?!?)
-;; - if first arg doesn't pass fill-column, but next one does, newline first
-;;   (maybe option for preferring first arg on first line or on next line?)
 ;; - add beginning-of-statement fns for more languages
 ;; - make it compatible with filladapt-mode
 ;; - handle c++ and python comments better. (the line after them doesn't get
 ;;   indented.)
-;; - fix foo(bar, /*baz ,baj*/, bax) unit test! (it only fails if it doesn't
-;;   use my ~/.emacs, ie with emacs -q. with my .emacs, it passes. without my
-;;   .emacs, c-beginning-of-statement returns nil; with my .emacs, it does the
-;;   same thing but returns t.
-
+;; - fillcode still fills previous statement in cc-mode multi-line comments
+;; - if non-sticky, first arg goes to next line but indents to same place! boo.
 
 (require 'cl)  ; for the case macro
 
@@ -104,8 +99,8 @@ it needs a chance to run (without narrowing!), which this advice provides."
      (progn
        (let ((fill-paragraph-function nil))
          ad-do-it)
-       (fillcode-fill-paragraph nil))
-  ))
+       (fillcode-fill-paragraph arg))) ; arg is c-fill-paragraph's arg
+  )
 
 
 (defgroup fillcode nil
@@ -134,10 +129,10 @@ foo(bar, baz(
   ;; note that inside a [...] group, - is used to specify ranges...so
   ;; to match it itself, it has to be at the beginning or end.
   (concat "\\(\\("
-                 "[,/+-]\\|"
+                 "[,/+]\\|"
                  "==\\|!=\\|||\\|&&\\|<=\\|>="
               "\\)"
-              "[^=>/*+-]"
+              "[^=>/*+]"
           "\\|"
           ; an open paren is a fill point only if it's not followed by a close
           ; paren
@@ -147,6 +142,10 @@ foo(bar, baz(
           ; conservative, they're only fill points if they're surrounded by
           ; whitespace
           "\\ \\*\\ "
+          "\\|"
+          ; minus signs are only fill points if they're not being used as a
+          ; negative sign
+          "-[ \t\n(]"
           )
   "A regular expression used to find the next fill point.
 A fill point is a point in an expression where a newline can reasonably be
@@ -204,18 +203,21 @@ Intended to be set as `fill-paragraph-function'."
           (setq filled nil)
           (while (search-forward "(" (fillcode-end-of-statement) t)
             (backward-char)
-            (fillcode)
-            (setq filled t))
+            (fillcode arg)
+            (setq filled t arg nil))
           filled)
         ))
     ))
 
 
 
-(defun fillcode ()
+(defun fillcode (arg)
   "Fill code at point.
 The actual function-call-filling algorithm. Fills function calls and prototypes
-if it thinks the point is on a statement that has one."
+if it thinks the point is on a statement that has one.
+
+If a prefix argument is provided, the first token after the first open
+parenthesis is automatically filled."
   (interactive)
   (fillcode-collapse-whitespace-forward)
 
@@ -228,14 +230,14 @@ if it thinks the point is on a statement that has one."
       (let ((c (char-to-string (char-after))))
 ;;         (edebug)
         ; fill if we need to
-        (if (fillcode-should-fill)
+        (if (or arg (fillcode-should-fill))
             (progn
-              (fillcode-find-fill-point-backward)
+              (fillcode-find-fill-point-backward arg)
               (insert "\n")
-              (indent-according-to-mode)))
+              (indent-according-to-mode)
+              (setq arg nil)))
         ; open parenthesis is our recursive step; recurse!
-        (if (equal c "(")
-            (fillcode))
+        (if (equal c "(") (fillcode nil))
         ; close parenthesis is our base case; return!
         (if (equal c ")")
             (throw 'closeparen t))
@@ -271,7 +273,9 @@ Otherwise, for safety, just goes to the beginning of the line.
     ((c-mode c++-mode java-mode objc-mode perl-mode)
      ; if we're at the beginning of the statement, `c-beginning-of-statement-1'
      ; will go to the *previous* statement. so go to the end of the line first.
-     (end-of-line) (c-beginning-of-statement-1) (beginning-of-line))
+     (end-of-line)
+     (condition-case nil (c-beginning-of-statement-1) (error nil))
+     (beginning-of-line))
     ((python-mode)
      (if (functionp 'py-goto-statement-at-or-above)
          (py-goto-statement-at-or-above)
@@ -302,7 +306,7 @@ for safety, just uses the end of the line."
          (if (if (functionp 'py-goto-statement-below)
                  (py-goto-statement-below) (python-next-statement))
              (search-backward ")" start 'p)
-           (forward-char))
+           (condition-case nil (forward-char) (error nil)))
            (point-at-eol))))
 
     ;`c-end-of-statement' might be a good fallback for unknown languages,
@@ -417,14 +421,14 @@ We should fill if:
 ;; (defun fillcode-find-fill-point-forward ()
 ;;   (fillcode-find-fill-point-helper 're-search-forward (line-end-position)))
 
-(defun fillcode-find-fill-point-backward ()
+(defun fillcode-find-fill-point-backward (&optional prefixed)
   ; the fill point regexp ends at the first char *after* the
   ; operator...so, move forward one char before searching.
   (forward-char)
-  (fillcode-find-fill-point-helper 're-search-backward
-                                   (point-at-bol)))
+  (fillcode-find-fill-point-helper 're-search-backward (point-at-bol)
+                                   prefixed))
 
-(defun fillcode-find-fill-point-helper (re-search-fn bound)
+(defun fillcode-find-fill-point-helper (re-search-fn bound &optional prefixed)
   "Move to the closest fill point on the current line.
 Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
 eventually arithmetic operators, ||s, &&s, etc. This function finds the
@@ -438,9 +442,9 @@ If there's no fill point on the current line, throws `no-fill-point'."
   (goto-char (1- (match-end 0)))
 
   ; can't fill if we're in or immediately after a comment or string literal,
-  ; or - if we're sticky - in an open paren.
+  ; or - if we're sticky and not prefixed - in an open paren.
   (if (or (fillcode-in-literal)
-          (and fillcode-open-paren-sticky
+          (and fillcode-open-paren-sticky (not prefixed)
                (equal "(" (substring (match-string 0) 0 1)))
           (save-excursion (backward-char) (fillcode-in-literal)))
       (fillcode-find-fill-point-helper re-search-fn bound))

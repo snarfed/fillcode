@@ -40,38 +40,75 @@
 
 
 ; test harness. runs fillcode on the given input in a temp buffer, once in
-; python mode and once in java mode. before running it in java mode, it
-; appends ; to the input string. the fill column is set to desired-fill-columnm
-; if provided.
+; python mode and once in java mode. before running it in java mode, it appends
+; to the input string.
 ;
 ; then, asserts that the results equal the expected output. (if the first
 ; character of the expected output is a newline, it's removed.)
 ;
+; if `desired-fill-column' is provided, `fill-column' is set to it.
+;
+; the expected output is normalized unless `dont-normalize' is non-nil.
+;
+; if `prefix-arg' is provided, it is passed as the first argument to
+; `fill-paragraph-function'.
+;
 ; returns the value returned from fillcode.
-(defun fillcode-test (input expected &optional desired-fill-column)
-  (fillcode-test-in-mode input expected
-                         'python-mode desired-fill-column)
-  (fillcode-test-in-mode (concat input ";") (concat expected ";")
-                         'java-mode desired-fill-column)
+(defun fillcode-test (input expected &optional desired-fill-column
+                            dont-normalize prefix-arg)
+  (let ((expected (trim-leading-newlines expected)))
+    (fillcode-test-in-mode input
+                           (if dont-normalize expected
+                             (normalize-python-indentation expected))
+                           'python-mode desired-fill-column)
+    (fillcode-test-in-mode (concat input ";") (concat expected ";")
+                           'java-mode desired-fill-column))
   )
 
 ;; actually set up the buffer, run fillcode, and check the output
 (defun fillcode-test-in-mode (input expected mode desired-fill-column)
-  (let ((expected-trimmed
-         (if (eq ?\n (string-to-char expected))
-             (substring expected 1)
-           expected)))
-    (with-temp-buffer
-      (toggle-mode-clean 'fundamental-mode)
-      (insert-string input)
-      (toggle-mode-clean mode)
-      (beginning-of-buffer)
-      (if desired-fill-column
-          (setq fill-column desired-fill-column))
-      (let ((ret (fillcode-fill-paragraph nil)))
-        (assert-equal expected-trimmed (buffer-string))
-        ret))
+  (with-temp-buffer
+    (toggle-mode-clean 'fundamental-mode)
+    (insert-string input)
+    (toggle-mode-clean mode)
+    (beginning-of-buffer)
+    (if desired-fill-column
+        (setq fill-column desired-fill-column))
+    (let ((ret (fillcode-fill-paragraph prefix-arg)))
+      (assert-equal expected (buffer-string))
+      ret)
     ))
+
+
+; trim leading newlines
+(defun trim-leading-newlines (string)
+  (if (eq 0 (string-match "\n+" string))
+      (replace-match "" t t string)
+    string)
+  )
+
+
+; the python-mode.el python mode (maintained at python.org and included with
+; xemacs and emacs 21) is dumb about indentation. it doesn't recognize nested
+; parenthetical expressions.
+;
+; the python.el python mode (included with emacs 22) is marginally smart. it's
+; also unlike java-mode, though; it only indents four more spaces per nesting
+; level, *not* to the open paren column, like it kinda should.
+;
+; so, if we're using python-mode and a line is indented more than four columns,
+; normalize it to four columns if using python-mode.el, eight columns if using
+; python.el. (this depends on the fact that the function call on the first line
+; is always "foo(" and is not indented.)
+(defun normalize-python-indentation (string)
+  (if (and ;(eq major-mode 'python-mode)
+       (string-match "\n[ ]\\{5,\\}" string))
+      (replace-match
+       (if (functionp 'py-version) "\n    " "\n        ")
+       t t string)
+    string)
+  )
+
 
 ; turn on the given major mode, set up so it's appropriate for testing
 ; fillcode: plain vanilla (no hooks), no tabs, basic-offset 2.
@@ -249,21 +286,6 @@ foo(barbarbar,
 foo(barbarbar,
     baz(x), baf)" 18)
 
-  ; x
-  (fillcode-test "foo(barbarbar, baz(x), baf)" "
-foo(barbarbar, baz(
-    x), baf)" 19)
-
-  ; )
-  (fillcode-test "foo(barbarbar, baz(x), baf)" "
-foo(barbarbar, baz(
-    x), baf)" 20)
-
-  ; ,
-  (fillcode-test "foo(barbarbar, baz(x), baf)" "
-foo(barbarbar, baz(
-    x), baf)" 21)
-
   ; [space]
   (fillcode-test "foo(barbarbar, baz(x), baf)" "
 foo(barbarbar, baz(x),
@@ -365,6 +387,13 @@ foo(bar +
   (fillcode-test "foo(bar+baz)" "
 foo(bar +
     baz)" 6)
+
+  ; the minus sign is tricky. when it's used to indicate a negative scalar, it
+  ; *shouldn't* be normalized.
+  (fillcode-test "foo(-bar)" "foo(-bar)")
+  (fillcode-test "foo(-3)" "foo(-3)")
+  (fillcode-test "foo(bar,-baz)" "foo(bar, -baz)")
+  (fillcode-test "foo(bar,-3)" "foo(bar, -3)")
   )
 
 
@@ -374,7 +403,7 @@ foo(bar +
   (fillcode-test "foo(bar) foo(baz,baj)" "foo(bar) foo(baz, baj)")
   (fillcode-test "foo(bar) foo(baz,baj)" "
 foo(bar) foo(baz,
-             baj)" 18)
+             baj)" 18 t)
 
   ;; ...even if they span multiple lines. (or not. TODO for later maybe.)
 ;;   (fillcode-test "if (bar) \\\n  foo(baz,baj)" "
@@ -430,8 +459,7 @@ foo(\"bar + bar\" +
   ; how to make this test portable. :/
 ;;   (fillcode-test "foo(bar) # baz, baj" "foo(bar) # baz, baj" 16)
 
-   (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax)" "
-foo(bar,
+   (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax)" "foo(bar,
     /*baz ,baj*/,
     bax)" 'java-mode 6)
 
@@ -456,6 +484,29 @@ foo(bar,
   (fillcode-test "foo(x, (y))\nbar( x)" "foo(x, (y))\nbar( x)")
   )
 
+; if there's a prefix argument, fill after the first open paren, no matter
+; what, even if we're sticky.
+(deftest prefix-argument
+  (test-prefix-argument t)
+  (test-prefix-argument nil)
+  )
+
+(defun test-prefix-argument (sticky)
+  (set-variable 'fillcode-open-paren-sticky sticky)
+
+  (fillcode-test "foo(bar,baz)" "
+foo(
+    bar, baz)" 80 nil t)
+
+  (fillcode-test "foo(bar,baz)" "
+foo(
+    bar,
+    baz)" 12 nil t)
+
+  (fillcode-test "foo(barbar, baz(baj))" "
+foo(
+    barbar, baz(baj))" 80 nil t)
+  )
 
 
 (defun inside-test (contents string point inside)
