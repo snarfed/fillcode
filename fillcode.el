@@ -209,7 +209,6 @@ Intended to be set as `fill-paragraph-function'."
           (fillcode-beginning-of-statement)
           (setq filled nil)
           (while (search-forward "(" (fillcode-end-of-statement) t)
-            (backward-char)
             (fillcode arg)
             (setq filled t arg nil))
           filled)
@@ -239,7 +238,9 @@ parenthesis is automatically filled."
         ; fill if we need to
         (if (or arg (fillcode-should-fill))
             (progn
-              (fillcode-find-fill-point-backward arg)
+              (catch 'no-fill-point
+                (fillcode-find-fill-point-backward)
+                t)
               (insert "\n")
               (indent-according-to-mode)
               (setq arg nil)))
