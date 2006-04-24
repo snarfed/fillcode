@@ -37,7 +37,7 @@
 ;; - fillcode still fills previous statement in cc-mode multi-line comments
 ;; - if non-sticky, first arg goes to next line but indents to same place! boo.
 
-(defconst fillcode-version "0.2")
+(defconst fillcode-version "0.4")
 
 (require 'cl)  ; for the case macro
 
@@ -227,49 +227,52 @@ parenthesis is automatically filled."
   (interactive)
   (fillcode-collapse-whitespace-forward)
 
-  ; the main loop. advances through the statement, normalizing whitespace and
-  ; deleting newlines along the way. the main loop should run once once and
-  ; only once for each printable character. when we hit the fill-column, fill
-  ; intelligently.
-  (catch 'closeparen
-    (while (char-after)
-      (let ((c (char-to-string (char-after))))
-;;         (edebug)
-        ; fill if we need to
-        (if (or arg (fillcode-should-fill))
-            (progn
-              (catch 'no-fill-point
-                (fillcode-find-fill-point-backward)
-                t)
-              (insert "\n")
-              (indent-according-to-mode)
-              (setq arg nil)))
-        ; open parenthesis is our recursive step; recurse!
-        (if (equal c "(") (fillcode nil))
-        ; close parenthesis is our base case; return!
-        (if (equal c ")")
-            (throw 'closeparen t))
-        ; next!
-        (fillcode-collapse-whitespace-forward)
-        )))
+  ; short-circuit: if it's an empty parenthetical expression, return
+  (if (equal ")" (char-to-string (char-before)))
+      t
 
-  ; if this is a nested function call, and we filled, newline after next comma
-;;   (if (and arg
-;;            (save-excursion
-;;              (skip-chars-backward "^(" (point-at-bol))
-;;              (eq (point) (point-at-bol))))
-;;       (progn
-;;         (collapse-whitespace-forward)  ; move past close paren
-;;         (if (equal "," (char-to-string (char-after)))
-;;             (progn
-;;               (delete-horizontal-space)
-;;               (forward-char)  ; move past comma
-;;               (collapse-whitespace-forward)
-;;               (newline-and-indent)))))
+    ; the main loop. advances through the statement, normalizing whitespace and
+    ; deleting newlines along the way. the main loop should run once once and
+    ; only once for each printable character. when we hit the fill-column, fill
+    ; intelligently.
+    (catch 'closeparen
+      (while (char-after)
+        (let ((c (char-to-string (char-after))))
+;;           (edebug)
+          ; fill if we need to
+          (if (or arg (fillcode-should-fill))
+              (progn
+                (catch 'no-fill-point
+                  (fillcode-find-fill-point-backward)
+                  t)
+                (insert "\n")
+                (indent-according-to-mode)
+                (setq arg nil)))
+          ; open parenthesis is our recursive step; recurse!
+          (if (equal c "(") (fillcode nil))
+          ; close parenthesis is our base case; return!
+          (if (equal c ")")
+              (throw 'closeparen t))
+          ; next!
+          (fillcode-collapse-whitespace-forward)
+          )))
 
-  ; return t to indicate that we filled something
-  t
-)
+    ; if this is a nested call, and we filled, newline after the next comma
+;;     (if (and arg
+;;              (save-excursion
+;;                (skip-chars-backward "^(" (point-at-bol))
+;;                (eq (point) (point-at-bol))))
+;;         (progn
+;;           (collapse-whitespace-forward) ; move past close paren
+;;           (if (equal "," (char-to-string (char-after)))
+;;               (progn
+;;                 (delete-horizontal-space)
+;;                 (forward-char)          ; move past comma
+;;                 (collapse-whitespace-forward)
+;;                 (newline-and-indent)))))
+
+    ; return t to indicate that we filled something
+    t))
 
 
 (defun fillcode-beginning-of-statement ()

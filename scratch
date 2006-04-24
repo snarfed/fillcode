@@ -4,9 +4,11 @@
 #
 # ln -s . fillcode
 # tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
-#  --exclude fillcode/fillcode fillcode
+#  --exclude fillcode/fillcode --exclude \*.patch fillcode
 # rm -f fillcode
 
+foo()
+bar( q )
 
 ab
 
@@ -114,3 +116,5 @@ foo(bar,
     /*baz ,baj*/,
     bax);
 foo("bar","baz")
+
+foo( x ( y,z ) ,a( b ,c ))

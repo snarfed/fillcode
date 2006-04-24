@@ -18,7 +18,8 @@
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Unit tests for fillcode; run them with runtests.sh or M-x eval-buffer C-F10.
+;; Unit tests for fillcode; run them with M-x eval-buffer C-F10 or
+;; ./elunit/runtests.sh.
 ;; For more information about fillcode, see fillcode.el.
 ;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
 
@@ -147,6 +148,7 @@
 
   ;; should know when to stop even if parenthetical expression is blank
   (fillcode-test "foo() bar( )" "foo() bar()")
+  (fillcode-test "foo()\nbar( x )" "foo()\nbar( x )")
   )
 
 (deftest paren-whitespace
