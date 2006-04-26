@@ -37,7 +37,7 @@
 ;; - fillcode still fills previous statement in cc-mode multi-line comments
 ;; - if non-sticky, first arg goes to next line but indents to same place! boo.
 
-(defconst fillcode-version "0.4")
+(defconst fillcode-version "0.5")
 
 (require 'cl)  ; for the case macro
 
@@ -333,48 +333,49 @@ Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators.
 Except string literals and comments, they're left untouched. Then advance
 point to next non-whitespace char."
-  (cond
-   ; if we're in a string literal or comment, skip to the end of it 
-   ((fillcode-in-literal)
-    ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
-    (forward-char))
+  (let ((whitespace-re (concat "[" fillcode-whitespace-chars "]")))
+    (cond
+     ; if we're in a string literal or comment, skip to the end of it 
+     ((fillcode-in-literal)
+      ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
+      (forward-char))
 
-   ; if we're at the end of the line, pull up the next line
-   ((eolp)
-    (delete-indentation t))
+     ; if we're at the end of the line, pull up the next line
+     ((eolp)
+      (delete-indentation t))
 
-   ; if we're on whitespace, delete it. if that brings us to a fill point,
-   ; fall down to the logic below. otherwise, normalize to exactly one space
-   ; and continue.
-   ((looking-at (concat "[" fillcode-whitespace-chars "]"))
-    (delete-horizontal-space)
-    (if (and (not (looking-at fillcode-fill-point-re))
-             (not (looking-at "(")))
-        (progn (fixup-whitespace) (forward-char))))
+     ; if we're on whitespace, delete it. if that brings us to a fill point,
+     ; fall down to the logic below. otherwise, normalize to exactly one space
+     ; and continue.
+     ((looking-at whitespace-re)
+      (delete-horizontal-space)
+      (if (and (not (looking-at fillcode-fill-point-re))
+               (not (looking-at "(")))
+          (progn (fixup-whitespace)
+                 (if (looking-at whitespace-re) (forward-char)))))
 
-   ; if we're before a non-comma/open paren fill point, insert a space
-   ((and (looking-at fillcode-fill-point-re)
-         (not (looking-at "[,(]")))
-    (progn (insert " ") (goto-char (match-end 0))))
+     ; if we're before a non-comma/open paren fill point, insert a space
+     ((and (looking-at fillcode-fill-point-re)
+           (not (looking-at "[,(]")))
+      (progn (insert " ") (goto-char (match-end 0))))
 
-   ; if we're after a fill point, insert a space. (note that the fill point
-   ; regexp ends at the first char *after* the operator.)
-   ((and (save-excursion
-           (condition-case nil
-               (progn (forward-char)
-                      (re-search-backward fillcode-fill-point-re
-                                          (point-at-bol)))
-             (error nil)))
-         (equal (point) (1- (match-end 0)))
-         (not (save-excursion (backward-char) (fillcode-in-literal))))
-    (progn (fixup-whitespace)
-           ; skip *past* the char we were on originally. if we inserted a
-           ; space, that's two chars forward, otherwise just one.
-           (forward-char (if (looking-at " ") 2 1))))
+     ; if we're after a fill point, insert a space. (note that the fill point
+     ; regexp ends at the first char *after* the operator.)
+     ((and (save-excursion
+             (condition-case nil
+                 (progn (forward-char)
+                        (re-search-backward fillcode-fill-point-re
+                                            (point-at-bol)))
+               (error nil)))
+           (equal (point) (1- (match-end 0)))
+           (not (save-excursion (backward-char) (fillcode-in-literal))))
+      (progn (fixup-whitespace)
+             ; skip *past* the char we were on originally. if we inserted a
+             ; space, that's two chars forward, otherwise just one.
+             (forward-char (if (looking-at " ") 2 1))))
 
-   ; ...otherwise, base case: advance one char
-   (t (forward-char))
-   ))
+     ; ...otherwise, base case: advance one char
+     (t (forward-char)))))
 
 (defun fillcode-should-fill ()
   "Return t if we should fill at the last fill point, nil otherwise.

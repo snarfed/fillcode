@@ -145,10 +145,14 @@
   (fillcode-test "foo()" "foo()")
   (fillcode-test "foo(\n)" "foo()")
   (fillcode-test "foo(\n\n)" "foo()")
+  )
 
-  ;; should know when to stop even if parenthetical expression is blank
+(deftest fill-first-line-but-no-more
+  ;; should stop filling at the end of a line, even if a parenthetical
+  ;; expression is blank or has trailing spaces. (those were bugs. :P)
   (fillcode-test "foo() bar( )" "foo() bar()")
   (fillcode-test "foo()\nbar( x )" "foo()\nbar( x )")
+  (fillcode-test "foo(x )\nbar(y)" "foo(x)\nbar(y)")
   )
 
 (deftest paren-whitespace

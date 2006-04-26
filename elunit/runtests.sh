@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Run the fillcode unit tests.
+# Run the fillcode unit tests against both gnu emacs and xemacs.
 #
 # This script assumes that it's running inside a directory hierarchy that
 # looks like this:
