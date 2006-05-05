@@ -2,7 +2,7 @@
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
-;; Copyright 2005 Ryan Barrett <fillcode@ryanb.org>
+;; Copyright 2005-2006 Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -36,13 +36,12 @@
   (lambda ()
     (interactive)
     (save-some-buffers)
-    (elunit-run '("fillcode_unittest.el"))
-    ))
+    (elunit-run '("fillcode_unittest.el"))))
 
 
-; test harness. runs fillcode on the given input in a temp buffer, once in
-; python mode and once in java mode. before running it in java mode, it appends
-; to the input string.
+; test harness. runs fillcode on the given input in a temp buffer in python,
+; java, and c++ major modes. appends semicolons in java-mode and open curly
+; braces in c++-mode.
 ;
 ; then, asserts that the results equal the expected output. (if the first
 ; character of the expected output is a newline, it's removed.)
@@ -63,30 +62,40 @@
                              (normalize-python-indentation expected))
                            'python-mode desired-fill-column)
     (fillcode-test-in-mode (concat input ";") (concat expected ";")
-                           'java-mode desired-fill-column))
-  )
+                           'java-mode desired-fill-column)
+    (fillcode-test-in-mode (concat input " {") (concat expected " {")
+                           'c++-mode desired-fill-column)))
 
-;; actually set up the buffer, run fillcode, and check the output
+
+;; set up the buffer and mode, then run and check fillcode with point at the
+;; beginning of the buffer, at the end, and in the middle
 (defun fillcode-test-in-mode (input expected mode desired-fill-column)
-  (with-temp-buffer
-    (toggle-mode-clean 'fundamental-mode)
-    (insert-string input)
-    (toggle-mode-clean mode)
-    (beginning-of-buffer)
-    (if desired-fill-column
-        (setq fill-column desired-fill-column))
-    (let ((ret (fillcode-fill-paragraph prefix-arg)))
-      (assert-equal expected (buffer-string))
-      ret)
-    ))
+  (dolist (point-fn (list
+    'beginning-of-buffer
+    'end-of-line-with-first-close-paren
+    (lambda () (end-of-line-with-first-close-paren) (forward-line -1))))
+
+    (with-temp-buffer
+      (toggle-mode-clean 'fundamental-mode)
+      (toggle-mode-clean mode)
+      (if desired-fill-column
+          (setq fill-column desired-fill-column))
+      (insert-string input)
+      (funcall point-fn)
+      (fillcode-fill-paragraph prefix-arg)
+      (assert-equal expected (buffer-string)))))
 
 
-; trim leading newlines
+; these are self-explanatory
+(defun end-of-line-with-first-close-paren ()
+  (beginning-of-buffer)
+  (search-forward ")" nil t)
+  (end-of-line))
+
 (defun trim-leading-newlines (string)
   (if (eq 0 (string-match "\n+" string))
       (replace-match "" t t string)
-    string)
-  )
+    string))
 
 
 ; the python-mode.el python mode (maintained at python.org and included with
@@ -107,8 +116,7 @@
       (replace-match
        (if (functionp 'py-version) "\n    " "\n        ")
        t t string)
-    string)
-  )
+    string))
 
 
 ; turn on the given major mode, set up so it's appropriate for testing
@@ -121,8 +129,8 @@
         (sql-mode-hook nil))
     (funcall mode))
   (setq indent-tabs-mode nil
-;;         c-basic-offset 2
-        )
+        py-indent-offset 4
+        c-basic-offset 4)
   (fillcode-mode))
 
 ; failure test harness. runs fillcode on the given input in a temp buffer, and
@@ -178,15 +186,16 @@ baz")
 
 (deftest paren-newlines
   (fillcode-test "foo(bar)" "foo(bar)")
-  (fillcode-test "foo(bar\n)" "foo(bar)")
-  (fillcode-test "foo(\nbar\n)" "foo(bar)")
+  (fillcode-test "foo(bar\n  )" "foo(bar)")
+  (fillcode-test "foo(\n  bar)" "foo(bar)")
+  (fillcode-test "foo(\n  bar\n  )" "foo(bar)")
   )
 
 (deftest comma-newlines
-  (fillcode-test "foo(bar,\nbaz)" "foo(bar, baz)")
-  (fillcode-test "foo(bar\n,baz)" "foo(bar, baz)")
-  (fillcode-test "foo(\nbar,baz\n)" "foo(bar, baz)")
-  (fillcode-test "foo(\nbar\n,\nbaz\n)" "foo(bar, baz)")
+  (fillcode-test "foo(bar,\n  baz)" "foo(bar, baz)")
+  (fillcode-test "foo(bar\n  ,baz)" "foo(bar, baz)")
+  (fillcode-test "foo(\n  bar,baz\n  )" "foo(bar, baz)")
+  (fillcode-test "foo(\n  bar\n  ,\n  baz\n  )" "foo(bar, baz)")
   )
 
 (deftest arithmetic-whitespace
@@ -197,15 +206,15 @@ baz")
   )
 
 (deftest blank-lines
-  (fillcode-test "foo(\n\nbar, baz)" "foo(bar, baz)")
-  (fillcode-test "foo(bar\n\n,baz)" "foo(bar, baz)")
-  (fillcode-test "foo(bar,\n\nbaz)" "foo(bar, baz)")
-  (fillcode-test "foo(\nbar, baz\n\n)" "foo(bar, baz)")
+  (fillcode-test "foo(\n\n  bar, baz)" "foo(bar, baz)")
+  (fillcode-test "foo(bar\n\n  ,baz)" "foo(bar, baz)")
+  (fillcode-test "foo(bar,\n\n  baz)" "foo(bar, baz)")
+  (fillcode-test "foo(\n  bar, baz\n\n  )" "foo(bar, baz)")
 
-  (fillcode-test "foo(\n\nbar, baz)" "foo(bar,\n    baz)" 9)
-  (fillcode-test "foo(bar\n\n,baz)" "foo(bar,\n    baz)" 9)
-  (fillcode-test "foo(bar,\n\nbaz)" "foo(bar,\n    baz)" 9)
-  (fillcode-test "foo(\nbar, baz\n\n)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(\n\n  bar, baz)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(bar\n\n  ,baz)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(bar,\n\n  baz)" "foo(bar,\n    baz)" 9)
+  (fillcode-test "foo(\n  bar, baz\n\n  )" "foo(bar,\n    baz)" 9)
   )
 
 (deftest simple-fill

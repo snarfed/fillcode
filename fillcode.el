@@ -2,7 +2,7 @@
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
-;; Copyright 2005 Ryan Barrett <fillcode@ryanb.org>
+;; Copyright 2005-2006 Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -61,8 +61,8 @@ To see what version of fillcode you are running, enter `\\[fillcode-version]'.
 For more information, see http://snarfed.org/space/fillcode"
  nil         ;; initial value
  " Fillcode" ;; mode line indicator
- nil         ;; keymap
- )
+ nil)        ;; keymap
+
 
 (defun fillcode-version ()
   "Echo the current version of fillcode mode in the minibuffer."
@@ -89,8 +89,7 @@ For more information, see http://snarfed.org/space/fillcode"
    (progn
      (if (eq fill-paragraph-function 'fillcode-fill-paragraph)
          (setq fill-paragraph-function fillcode-wrapped-fill-function))
-     (ad-deactivate 'c-fill-paragraph))
-   ))
+     (ad-deactivate 'c-fill-paragraph))))
 
 (ad-activate 'fillcode-mode)
 
@@ -106,8 +105,8 @@ it needs a chance to run (without narrowing!), which this advice provides."
      (progn
        (let ((fill-paragraph-function nil))
          ad-do-it)
-       (fillcode-fill-paragraph arg))) ; arg is c-fill-paragraph's arg
-  )
+       (fillcode-fill-paragraph arg)))) ; arg is c-fill-paragraph's arg
+
 
 
 (defgroup fillcode nil
@@ -152,8 +151,8 @@ foo(bar, baz(
           "\\|"
           ; minus signs are only fill points if they're not being used as a
           ; negative sign
-          "-[ \t\n(]"
-          )
+          "-[ \t\n(]")
+
   "A regular expression used to find the next fill point.
 A fill point is a point in an expression where a newline can reasonably be
 inserted. This regular expression identifies fill points. It must end one
@@ -196,8 +195,7 @@ Intended to be set as `fill-paragraph-function'."
              nil)
             ; otherwise, if it's set, call the wrapped fill function
             (fillcode-wrapped-fill-function
-             (funcall fillcode-wrapped-fill-function arg))
-            )))
+             (funcall fillcode-wrapped-fill-function arg)))))
 
 
       ; if the wrapped fill function did something, don't do anything more
@@ -211,9 +209,7 @@ Intended to be set as `fill-paragraph-function'."
           (while (search-forward "(" (fillcode-end-of-statement) t)
             (fillcode arg)
             (setq filled t arg nil))
-          filled)
-        ))
-    ))
+          filled)))))
 
 
 
@@ -254,8 +250,7 @@ parenthesis is automatically filled."
           (if (equal c ")")
               (throw 'closeparen t))
           ; next!
-          (fillcode-collapse-whitespace-forward)
-          )))
+          (fillcode-collapse-whitespace-forward))))
 
     ; if this is a nested call, and we filled, newline after the next comma
 ;;     (if (and arg
@@ -282,21 +277,22 @@ Otherwise, for safety, just goes to the beginning of the line.
 "
   (case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
-     ; if we're at the beginning of the statement, `c-beginning-of-statement-1'
-     ; will go to the *previous* statement. so go to the end of the line first.
-     (end-of-line)
-     (condition-case nil (c-beginning-of-statement-1) (error nil))
+     ; if we're at the beginning of the statement, `c-beginning-of-statement'
+     ; will go to the *previous* statement. so, first move past a
+     ; non-whitespace character.
+     (beginning-of-line)
+     (re-search-forward (concat "[^" fillcode-whitespace-chars "]"))
+     (condition-case nil (c-beginning-of-statement) (error nil))
      (beginning-of-line))
     ((python-mode)
      (if (functionp 'py-goto-statement-at-or-above)
          (py-goto-statement-at-or-above)
        (progn (python-beginning-of-statement) t)))
 
-    ;`c-beginning-of-statement-1' might be a good fallback for unknown
+    ;`c-beginning-of-statement' might be a good fallback for unknown
     ;languages, but it occasionally fails badly, e.g. in `perl-mode'.
     (otherwise
-     (beginning-of-line)))  ; default
-  )
+     (beginning-of-line))))  ; default
 
 
 (defun fillcode-end-of-statement ()
@@ -323,8 +319,7 @@ for safety, just uses the end of the line."
     ;`c-end-of-statement' might be a good fallback for unknown languages,
     ; but it occasionally fails badly, e.g. in `perl-mode'.
     (otherwise
-     (point-at-eol)))
-  )
+     (point-at-eol))))
 
 
 (defun fillcode-collapse-whitespace-forward ()
@@ -402,8 +397,7 @@ We should fill if:
    (save-excursion
      (catch 'no-fill-point
        (fillcode-find-fill-point-backward)
-       t))
-   ))
+       t))))
 
 
 ;; (defun fillcode-find-fill-point ()
@@ -459,8 +453,7 @@ If there's no fill point on the current line, throws `no-fill-point'."
           (and fillcode-open-paren-sticky (not prefixed)
                (equal "(" (substring (match-string 0) 0 1)))
           (save-excursion (backward-char) (fillcode-in-literal)))
-      (fillcode-find-fill-point-helper re-search-fn bound))
-  )
+      (fillcode-find-fill-point-helper re-search-fn bound)))
 
 
 (defun fillcode-in-literal ()
@@ -494,8 +487,7 @@ return non-nil if we're past the first char of the start token, so
                                (equal x (buffer-substring
                                          (max (1- (point)) (point-min))
                                          (min (1+ (point)) (point-max)))))
-                             literal-start-tokens))))
-    ))
+                             literal-start-tokens))))))
 
 
 (defun fillcode-inside (str &optional moved)
@@ -511,8 +503,7 @@ Here, \"on\" means that point is on any of the characters in the string."
                 (save-excursion
                   (backward-char)
                   (fillcode-inside str (1+ moved)))))
-      (error nil))
-      ))
+      (error nil))))
 
 
 (provide 'fillcode)
