@@ -478,6 +478,15 @@ foo(\"bar + bar\" +
     /*baz ,baj*/,
     bax)" 'java-mode 6)
 
+   (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax)" "foo(bar,
+    #baz ,baj,
+    bax)" 'python-mode 6)
+
+   (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(bar,
+    //baz ,baj,
+    bax);" 'c++-mode 6)
+
+
   ;; TODO: get c++ comments working
 ;;   (fillcode-test-in-mode "
 ;; foo(// bar, baz
@@ -499,28 +508,24 @@ foo(\"bar + bar\" +
   (fillcode-test "foo(x, (y))\nbar( x)" "foo(x, (y))\nbar( x)")
   )
 
-; if there's a prefix argument, fill after the first open paren, no matter
+; if there's a prefix argument, fill at the first fill point, no matter
 ; what, even if we're sticky.
+; TODO(ryanb): finish changing this to always-fill
 (deftest prefix-argument
   (test-prefix-argument t)
-  (test-prefix-argument nil)
+;;   (test-prefix-argument nil)
   )
 
 (defun test-prefix-argument (sticky)
   (set-variable 'fillcode-open-paren-sticky sticky)
 
   (fillcode-test "foo(bar,baz)" "
-foo(
-    bar, baz)" 80 nil t)
+foo(bar,
+    baz)" 80 nil t)
 
   (fillcode-test "foo(bar,baz)" "
-foo(
-    bar,
+foo(bar,
     baz)" 12 nil t)
-
-  (fillcode-test "foo(barbar, baz(baj))" "
-foo(
-    barbar, baz(baj))" 80 nil t)
   )
 
 

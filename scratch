@@ -21,9 +21,13 @@ foo(bar.baz)
 
 foo(bar(x), baz)
 
-foo(bar, baz, baj)
+foo(bar,
+  # qwert
+baz, baj,
+sdofij, qwerkjfdsaoij,k fdsa)
 
-foo(bar, bazbaz, baj)
+foo(bar,
+    bazbaz, baj)
 
 foo(barbar(baz))
 

@@ -27,6 +27,12 @@
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; TODO:
+;; - fillcode still fills previous statement in cc-mode multi-line comments
+;; - if non-sticky, first arg goes to next line but indents to same place! boo.
+;; - python (and other) comments are filled *out of the comment* if they pass
+;;   the fill column. e.g.:
+;;   foo(bar,  # i like bar
+;;       baz)
 ;; - fill expressions outside parentheses
 ;; - somehow include the assignment = operator and <, > in
 ;;   fillcode-fill-point-re. (how to handle <, > with e.g. templates?!?)
@@ -34,8 +40,6 @@
 ;; - make it compatible with filladapt-mode
 ;; - handle c++ and python comments better. (the line after them doesn't get
 ;;   indented.)
-;; - fillcode still fills previous statement in cc-mode multi-line comments
-;; - if non-sticky, first arg goes to next line but indents to same place! boo.
 
 (defconst fillcode-version "0.5")
 
@@ -218,8 +222,11 @@ Intended to be set as `fill-paragraph-function'."
 The actual function-call-filling algorithm. Fills function calls and prototypes
 if it thinks the point is on a statement that has one.
 
-If a prefix argument is provided, the first token after the first open
-parenthesis is automatically filled."
+If a prefix argument is provided, the expression is filled at *all* top-level
+fill points. In function calls, this can be used to put each argument on its
+own line.
+;;the first token after the first open
+;;parenthesis is automatically filled."
   (interactive)
   (fillcode-collapse-whitespace-forward)
 
@@ -236,14 +243,13 @@ parenthesis is automatically filled."
         (let ((c (char-to-string (char-after))))
 ;;           (edebug)
           ; fill if we need to
-          (if (or arg (fillcode-should-fill))
+          (if (fillcode-should-fill arg)
               (progn
                 (catch 'no-fill-point
                   (fillcode-find-fill-point-backward)
                   t)
                 (insert "\n")
-                (indent-according-to-mode)
-                (setq arg nil)))
+                (indent-according-to-mode)))
           ; open parenthesis is our recursive step; recurse!
           (if (equal c "(") (fillcode nil))
           ; close parenthesis is our base case; return!
@@ -333,7 +339,9 @@ point to next non-whitespace char."
      ; if we're in a string literal or comment, skip to the end of it 
      ((fillcode-in-literal)
       ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
-      (forward-char))
+      (forward-char)
+      (if (equal "\n" (char-to-string (char-before)))
+          (indent-according-to-mode)))
 
      ; if we're at the end of the line, pull up the next line
      ((eolp)
@@ -372,12 +380,16 @@ point to next non-whitespace char."
      ; ...otherwise, base case: advance one char
      (t (forward-char)))))
 
-(defun fillcode-should-fill ()
+(defun fillcode-should-fill (always)
   "Return t if we should fill at the last fill point, nil otherwise.
 
 We should fill if:
 
-- there's a fill point on this line, AND EITHER
+- there's a fill point on this line, AND
+
+- we're not in a comment or string literal, AND EITHER
+
+- always is non-nil OR
 
 - the current char is at or beyond `fill-column' OR
 
@@ -385,8 +397,11 @@ We should fill if:
   comma. (have to look ahead like this so that we don't end up past the close
   paren, and miss the close paren base case, which would screw up the stack.)"
   (and
+   ; not in a comment or string literal?
+   (not (fillcode-in-literal))
    ; past fill-column?
-   (or (>= (current-column) fill-column)
+   (or always
+       (>= (current-column) fill-column)
        ; this is a close paren, and next is a fill point past fill-column?
        (save-excursion
          (and (looking-at ")")
