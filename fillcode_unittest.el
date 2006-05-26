@@ -508,16 +508,16 @@ foo(\"bar + bar\" +
   (fillcode-test "foo(x, (y))\nbar( x)" "foo(x, (y))\nbar( x)")
   )
 
-; if there's a prefix argument, fill at the first fill point, no matter
-; what, even if we're sticky.
-; TODO(ryanb): finish changing this to always-fill
+; if there's a prefix argument, fill at all top-level fill points. fill at
+; other fill points only as needed.
 (deftest prefix-argument
   (test-prefix-argument t)
-;;   (test-prefix-argument nil)
-  )
+  (test-prefix-argument nil))
 
 (defun test-prefix-argument (sticky)
   (set-variable 'fillcode-open-paren-sticky sticky)
+
+  (fillcode-test "foo(bar)" "foo(bar)" 80 nil t)
 
   (fillcode-test "foo(bar,baz)" "
 foo(bar,
@@ -526,7 +526,18 @@ foo(bar,
   (fillcode-test "foo(bar,baz)" "
 foo(bar,
     baz)" 12 nil t)
-  )
+
+  (fillcode-test "foo(bar,baz(baj))" "
+foo(bar,
+    baz(baj))" 80 nil t)
+
+  (fillcode-test "foo(bar,baz(baj, bak))" "
+foo(bar,
+    baz(baj, bak))" 80 nil t)
+
+  (fillcode-test "foo(baz(baj, bak), bar)" "
+foo(baz(baj, bak),
+    bar)" 80 nil t))
 
 
 (defun inside-test (contents string point inside)

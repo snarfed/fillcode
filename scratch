@@ -15,7 +15,10 @@ ab
 foo(
 )
 
-foo(bar, baz)
+foo(
+    bar,
+    baz(
+    baj))
 
 foo(bar.baz)
 

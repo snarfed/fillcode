@@ -224,9 +224,7 @@ if it thinks the point is on a statement that has one.
 
 If a prefix argument is provided, the expression is filled at *all* top-level
 fill points. In function calls, this can be used to put each argument on its
-own line.
-;;the first token after the first open
-;;parenthesis is automatically filled."
+own line."
   (interactive)
   (fillcode-collapse-whitespace-forward)
 
@@ -411,7 +409,7 @@ We should fill if:
    ; fill point on this line?
    (save-excursion
      (catch 'no-fill-point
-       (fillcode-find-fill-point-backward)
+       (fillcode-find-fill-point-backward always)
        t))))
 
 
