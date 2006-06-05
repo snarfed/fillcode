@@ -7,7 +7,18 @@
 #  --exclude fillcode/fillcode --exclude \*.patch fillcode
 # rm -f fillcode
 
+foo(
+)
+bar
+
+foo[ ]{}()
+# qwert sdf wer kjsfd
+foo(x);
+
 foo(x )
+
+foo[]
+
 bar( q )
 
 ab
@@ -15,10 +26,11 @@ ab
 foo(
 )
 
-foo(
-    bar,
-    baz(
-    baj))
+foo(bar, baz(baj))
+
+foo(a,
+    b(c, d,
+      e))
 
 foo(bar.baz)
 
@@ -40,7 +52,7 @@ foo(barbarbar   ,baz(x), baf)
 
 foo(bar==asdf+baz-baj/baf*bap)
 
-qwert(asdf,baz,bar, baj)
+qwert(asdf,baz,bar, qwert baj)
     foo();
 
 foo(b
@@ -79,10 +91,20 @@ foo(bar); // baz, baj
 foo(// bar
     bajbaj, bax);
 
-BufferedWriter bW = new BufferedWriter(new FileWriter(albumDir_.getPath()+xyz+bigImg+".html")));
+BufferedWriter bW = new BufferedWriter(new FileWriter(albumDir_.getPath()+xyz+bigImg+
+                                                      ".html")));
 
 
-bW.write("<html><body><div align=center><table border=1>\n"+"<tr><td colspan=3><div align=center><img src=\""+currImg+"\"></div></td></tr>\n""<tr><td><div align=center><a href=\""+prevImg+".html"+"\"><img src=\""+THUMB_PREFIX+prevImg+"\"><br>The One Before</a></div></td>"+"<td><a href=\""+bigImg+"\"><div align=center>The Full Size Version</a></div></td>"+"<td><div align=center><a href=\""+nextImg+".html"+"\"><img src=\""+THUMB_PREFIX+nextImg+"\"><br>The Next One</a></div></td></tr>"+"</table></div></body></html>");
+bW.write("<html><body><div align=center><table border=1>\n"+
+         "<tr><td colspan=3><div align=center><img src=\""+currImg+
+         "\"></div></td></tr>\n""<tr><td><div align=center><a href=\""+
+         prevImg+".html"+"\"><img src=\""+THUMB_PREFIX+prevImg+
+         "\"><br>The One Before</a></div></td>"+"<td><a href=\""+bigImg+
+         "\"><div align=center>The Full Size Version</a></div></td>"+
+         "<td><div align=center><a href=\""+nextImg+".html"+
+         "\"><img src=\""+THUMB_PREFIX+nextImg+
+         "\"><br>The Next One</a></div></td></tr>"+
+         "</table></div></body></html>");
 
 
 foo(bar.baz)
@@ -124,4 +146,8 @@ foo(bar,
     bax);
 foo("bar","baz")
 
-foo( x ( y,z ) ,a( b ,c ))
+foo(x ( y, z), a( b ,c ))
+
+bar
+bar
+bar
