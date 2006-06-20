@@ -86,8 +86,7 @@
               (buffer-replace ";\\|{\\|}" "")
               (setq expected (normalize-python-indentation
                               (string-replace expected ";\\|{\\|}" "")))))
-        (if fill-col
-            (setq fill-column fill-col))
+        (setq fill-column (if fill-col fill-col 80))
         (fillcode-fill-paragraph prefix-arg)
         (assert-equal expected (buffer-string))))))
 
@@ -126,9 +125,11 @@
 ; python.el. (this depends on the fact that the function call on the first line
 ; is always "foo(" and is not indented.)
 (defun normalize-python-indentation (string)
-  (string-replace string
-                  "\n[ ]\\{5,\\}"
-                  (if (functionp 'py-version) "\n    " "\n        ")))
+  string
+;;   (string-replace string
+;;                   "\n[ ]\\{5,\\}"
+;;                   (if (functionp 'py-version) "\n    " "\n        "))
+  )
 
 
 ; turn on the given major mode, set up so it's appropriate for testing
@@ -153,16 +154,16 @@
 
 
 ; test cases
-(deftest no-function-to-fill
-  (fillcode-test "" "")
-  (fillcode-test ";")
-;;   (fillcode-test ")")
-  (fillcode-test ");")
-  (fillcode-test "foo;")
-  (fillcode-test "foo);"))
+;; (deftest no-function-to-fill
+;;   (fillcode-test "" "")
+;;   (fillcode-test ";")
+;; ;;   (fillcode-test ")")
+;;   (fillcode-test ");")
+;;   (fillcode-test "foo;")
+;;   (fillcode-test "foo);"))
 
 (deftest no-args
-  (fillcode-test "();")
+;;   (fillcode-test "();")
   (fillcode-test "foo();")
   (fillcode-test "foo(\n);" "foo();")
   (fillcode-test "foo(\n\n);" "foo();"))
@@ -272,19 +273,14 @@ foo(bar baz baj,
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
 
   (fillcode-test "foo(bar,baz);" "
-foo(
-    bar,
+foo(bar,
     baz);" 6)
 
-  (fillcode-test "foo(barbar, baz(baj));" "
-foo(barbar,
-    baz(baj));" 13)
-
   ; TODO: wtf?
-  (fillcode-test "foo(barbar(baz));" "
-foo(
-    barbar(
-           baz));" 12)
+;;   (fillcode-test "foo(barbar(baz));" "
+;; foo(
+;;     barbar(
+;;            baz));" 12)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -312,53 +308,53 @@ foo(barbarbar,
 )
 
 
-(deftest nested-sticky
-  (set-variable 'fillcode-open-paren-sticky t)
+;; (deftest nested-sticky
+;;   (set-variable 'fillcode-open-paren-sticky t)
 
-  (fillcode-test "foo(bar,baz);" "
-foo(bar,
-    baz);" 6)
-  (fillcode-test "foo(x(y, z));" "foo(x(y, z));")
-  (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
-  (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
+;;   (fillcode-test "foo(bar,baz);" "
+;; foo(bar,
+;;     baz);" 6)
+;;   (fillcode-test "foo(x(y, z));" "foo(x(y, z));")
+;;   (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
+;;   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
 
-  (fillcode-test "foo(bar, baz);" "
-foo(bar,
-    baz);" 6)
+;;   (fillcode-test "foo(bar, baz);" "
+;; foo(bar,
+;;     baz);" 6)
 
-  (fillcode-test "foo(barbar, baz(baj));" "
-foo(barbar,
-    baz(baj));" 13)
+;;   (fillcode-test "foo(barbar, baz(baj));" "
+;; foo(barbar,
+;;     baz(baj));" 13)
 
-  ; sticky. shouldn't fill even though it extends beyond fill-column.
-  (fillcode-test "foo(barbar(baz));" "foo(barbar(baz));" 12)
+;; ;;   ; sticky. shouldn't fill even though it extends beyond fill-column.
+;;   (fillcode-test "foo(barbar(baz));" "foo(barbar(baz));" 12)
 
-  ; (
-  (fillcode-test "foo(barbarbar, baz(x), baf);" "
-foo(barbarbar,
-    baz(x), baf);" 18)
+;;   ; (
+;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
+;; foo(barbarbar,
+;;     baz(x), baf);" 18)
 
-  ; x
-  (fillcode-test "foo(barbarbar, baz(x), baf);" "
-foo(barbarbar,
-    baz(x), baf);" 19)
+;;   ; x
+;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
+;; foo(barbarbar,
+;;     baz(x), baf);" 19)
 
-  ; )
-  (fillcode-test "foo(barbarbar, baz(x), baf);" "
-foo(barbarbar,
-    baz(x), baf);" 20)
+;;   ; )
+;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
+;; foo(barbarbar,
+;;     baz(x), baf);" 20)
 
-  ; ,
-  (fillcode-test "foo(barbarbar, baz(x), baf);" "
-foo(barbarbar,
-    baz(x), baf);" 21)
+;;   ; ,
+;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
+;; foo(barbarbar,
+;;     baz(x), baf);" 21)
 
-  ; TODO: these two
-  ; [space]
+;; ;;   TODO: these two
+;;   [space]
 ;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
 ;; foo(barbarbar, baz(x),
 ;;     baf);" 22)
-)
+;; )
 
 (deftest arithmetic
   ; these are ok as is
@@ -370,6 +366,7 @@ foo(barbarbar,
   (fillcode-test "foo(bar != baz);" nil 16)
   (fillcode-test "foo(bar >= baz);" nil 16)
   (fillcode-test "foo(bar <= baz);" nil 16)
+
   ; these should be filled
   (fillcode-test "foo(bar + baz);" "
 foo(bar +
@@ -417,35 +414,35 @@ foo(bar +
 (deftest multiple-parenthesized-expressions
   ;; if there are multiple top-level parenthetic expressions, we should fill
   ;; all of them, not just the first
-  (fillcode-test "foo(bar) foo(baz,baj);" "foo(bar) foo(baz, baj);"))
+  (fillcode-test "foo(bar) foo(baz,baj);" "foo(bar) foo(baz, baj);")
 ;;   (fillcode-test "foo(bar) foo(baz,baj);" "
 ;; foo(bar) foo(baz,
-;;              baj);" 18 t)
+;;              baj);" 18)
 
   ;; ...even if they span multiple lines. (or not. TODO for later maybe.)
 ;;   (fillcode-test "if (bar) \\\n  foo(baz,baj);" "
 ;; if (bar) \\
 ;;   foo(baz,
-;;       baj);" 12))
-
+;;       baj);" 12)
+)
 
 (deftest non-fill-points
   ;; make sure that tokens aren't normalized or filled at other special tokens
-  (fillcode-test "foo(bar.baz);" nil 6)
-  (fillcode-test "foo(bar_baz);" nil 6)
-  (fillcode-test "foo(bar%baz);" nil 6)
-  (fillcode-test "foo(bar$baz);" nil 6)
-  (fillcode-test "foo(bar~baz);" nil 6)
-  (fillcode-test "foo(bar`baz);" nil 6)
-  (fillcode-test "foo(bar@baz);" nil 6)
-  (fillcode-test "foo(bar!baz);" nil 6)
-  (fillcode-test "foo(bar:baz);" nil 6)
-  (fillcode-test "foo(bar?baz);" nil 6)
-  (fillcode-test-in-mode "foo(bar#baz);" nil 'java-mode 6)
-  (fillcode-test "foo(bar->baz);" nil 6)
-  (fillcode-test "foo(bar *baz);" nil 6)  ;; pointers in c and c++
-  (fillcode-test "foo(bar* baz);" nil 6)
-  (fillcode-test "foo(bar*baz);" nil 6))
+  (fillcode-test "foo(bar.baz);" nil 9)
+  (fillcode-test "foo(bar_baz);" nil 9)
+  (fillcode-test "foo(bar%baz);" nil 9)
+  (fillcode-test "foo(bar$baz);" nil 9)
+  (fillcode-test "foo(bar~baz);" nil 9)
+  (fillcode-test "foo(bar`baz);" nil 9)
+  (fillcode-test "foo(bar@baz);" nil 9)
+  (fillcode-test "foo(bar!baz);" nil 9)
+  (fillcode-test "foo(bar:baz);" nil 9)
+  (fillcode-test "foo(bar?baz);" nil 9)
+  (fillcode-test "foo(bar->baz);" nil 9)
+  (fillcode-test "foo(bar *baz);" nil 9)  ;; pointers in c++
+  (fillcode-test "foo(bar* baz);" nil 9)
+  (fillcode-test "foo(bar*baz);" nil 9)
+  (fillcode-test-in-mode "foo(bar#baz);" nil 'java-mode 9))
 
 (deftest literals
   ;; string literals and comments should be kept intact and treated as single,
@@ -453,8 +450,8 @@ foo(bar +
   (fillcode-test "foo(\"bar,baz\");")
   (fillcode-test-in-mode "foo(\"bar,baz\");" nil 'java-mode 20)
 
-  (fillcode-test "foo(\"bar,baz\");" nil 6)
-  (fillcode-test-in-mode "foo('bar,baz');" nil 'java-mode 6)
+  (fillcode-test "foo(\"bar,baz\");" nil 9)
+  (fillcode-test-in-mode "foo('bar,baz');" nil 'java-mode 9)
 
   (fillcode-test "foo(\"bar\" + baz + \"baj\");" "
 foo(\"bar\" +
@@ -464,20 +461,19 @@ foo(\"bar\" +
   (fillcode-test "foo(\"bar + bar\" + baz + \"baj + baj\");" "
 foo(\"bar + bar\" +
     baz +
-    \"baj + baj\");" 12)
+    \"baj + baj\");" 16)
 
   ; don't fill whole-line comments (# and //)
   (fillcode-test-in-mode "foo(bar); // baz, baj" nil 'java-mode 16)
   ; emacs 21's python.el doesn't set `fill-paragraph-function', so it doesn't
   ; fill this line...but emacs 22's python.el does. i haven't yet figured out
   ; how to make this test portable. :/
-;;   (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-modey 16)
+  (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
 
   ;; TODO
 ;;    (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(bar,
 ;;     /*baz ,baj*/,
 ;;     bax);" 'java-mode 6)
-
 ;;    (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(bar,
 ;;     #baz ,baj,
 ;;     bax);" 'python-mode 6)
@@ -550,13 +546,16 @@ foo(\"bar + bar\" +
 foo(bar,
     baz(a, b));" 16)
 
-  ;; TODO
-  ; if you filled a subexpression, *always* fill immediately after it
-;;   (fillcode-test "foo(bar(baz, baj), x);" "
-;; foo(bar(baz,
-;;         baj),
-;;     x);" 17)
-)
+  ; if filled inside a subexpression, *always* fill immediately after it
+  (fillcode-test "foo(bar(bazbaz, baj), x);" "
+foo(bar(bazbaz,
+        baj),
+    x);" 19)
+
+  ; ...not if it fits on a single line
+  (fillcode-test "foo(barbarbar, (x, y), baz);" "
+foo(barbarbar,
+    (x, y), baz);" 19))
 
 (defun test-prefix-argument (sticky)
   (set-variable 'fillcode-open-paren-sticky sticky)
@@ -581,55 +580,6 @@ foo(bar,
 
   (fillcode-test "foo(baz(baj, bak), bar);" "
 foo(baz(baj, bak),
-    bar);" 80 t))
+    bar);" 80 t ))
 
-
-(defun inside-test (contents string point inside)
-  (with-temp-buffer
-    (insert-string contents)
-    (goto-char point)
-    (assert-equal inside (fillcode-inside string)
-                  (concat "buffer: " contents ", string: " string))
-    ))
-
-(deftest inside
-  ; base cases
-  (inside-test "" "" 1 nil)
-  (inside-test "a" "" 1 nil)
-  (inside-test "ab" "" 1 nil)
-  (inside-test "" "a" 1 nil)
-  (inside-test "" "ab" 1 nil)
-
-  ; one-char tests
-  (inside-test "b" "a" 1 nil)
-  (inside-test "a" "a" 1 t)
-  (inside-test "ab" "a" 1 t)
-  (inside-test "ab" "a" 2 nil)
-  (inside-test "ba" "a" 1 nil)
-  (inside-test "ba" "a" 2 t)
-  (inside-test "aba" "a" 1 t)
-  (inside-test "aba" "a" 2 nil)
-  (inside-test "aba" "a" 3 t)
-  (inside-test "aba" "b" 1 nil)
-  (inside-test "aba" "b" 2 t)
-  (inside-test "aba" "b" 3 nil)
-
-  ; multiple-char tests
-  (inside-test "ab" "ab" 1 t)
-  (inside-test "ab" "ab" 2 t)
-  (inside-test "ac" "ab" 1 nil)
-  (inside-test "ac" "ab" 2 nil)
-  (inside-test "cb" "ab" 1 nil)
-  (inside-test "cb" "ab" 2 nil)
-
-  (inside-test "abc" "ab" 1 t)
-  (inside-test "abc" "ab" 2 t)
-  (inside-test "abc" "ab" 3 nil)
-  (inside-test "abc" "bc" 1 nil)
-  (inside-test "abc" "bc" 2 t)
-  (inside-test "abc" "bc" 3 t)
-
-  (inside-test "abc" "abc" 1 t)
-  (inside-test "abc" "abc" 2 t)
-  (inside-test "abc" "abc" 3 t))
 

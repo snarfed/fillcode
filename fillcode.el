@@ -119,23 +119,23 @@ it needs a chance to run (without narrowing!), which this advice provides."
   "Fill code"
   :group 'fill)
 
-(defcustom fillcode-open-paren-sticky nil
-  "If non-nil, fillcode will not fill after the beginning of a subexpression.
-For example, if non-nil, fillcode will fill this:
+;; (defcustom fillcode-open-paren-sticky nil
+;;   "If non-nil, fillcode will not fill after the beginning of a subexpression.
+;; For example, if non-nil, fillcode will fill this:
 
-foo(bar, baz(baj))
+;; foo(bar, baz(baj))
 
-to
+;; to
 
-foo(bar,
-    baz(baj))
+;; foo(bar,
+;;     baz(baj))
 
-If nil, it will fill to:
+;; If nil, it will fill to:
 
-foo(bar, baz(
-    baj))"
-  :type 'boolean
-  :group 'fillcode)
+;; foo(bar, baz(
+;;     baj))"
+;;   :type 'boolean
+;;   :group 'fillcode)
 
 (defcustom fillcode-fill-point-re
   ;; note that inside a [...] group, - is used to specify ranges...so
@@ -220,84 +220,143 @@ Intended to be set as `fill-paragraph-function'."
 (defun fillcode (&optional arg)
   "Fill code at point.
 The actual function-call-filling algorithm. Fills function calls and prototypes
-if it thinks the point is on a statement that has one."
+if it thinks the point is on a statement that has one.
+
+Returns t if it actually filled somewhere (not including just normalizing
+whitespace), nil otherwise."
 
   ; the main loop. advances through the statement, filling as necessary. the
   ; main loop should run once once and only once for each printable
   ; character. when we hit the fill-column, fill intelligently.
 ;;   (let ((indent-to (fillcode-get-sexp-indent-column)))
-  (while (fillcode-forward-sexp)
-    (let ((c (char-to-string (char-after))))
+;;     (let ((c (char-to-string (char-after))))
+  (let ((filled nil))
+    (catch 'sexp-end
+      (while (fillcode-forward)
 ;;       (edebug)
-      ; fill if we need to
-      (if (fillcode-should-fill)
-          (fillcode-fill-at-last-fill-point))
-      ; start of a sexp!
-      (if (eq (char-syntax (char-after)) ?\()
-          (progn
-            ; if it extends beyond fill-column, fill *before* it starts
-            (if (>= (save-excursion (fillcode-forward-sexp) (current-column))
-                    fill-column)
-                (fillcode-fill-at-last-fill-point))
-            (forward-char)))
-      
-      ; end of a sexp. return!
-;;       (if (eq (char-syntax (char-after)) ?\))
-;;           (throw 'sexp-end t))
-      ; next!
-      )))
+        ; fill if we need to
+        (if (fillcode-should-fill)
+            (progn
+              (fillcode-fill-at-fill-point 'backward)
+              (setq filled t)))
+
+        ; end of a sexp. return!
+        (if (and (char-after)
+                 (eq (char-syntax (char-after)) ?\)))
+            (throw 'sexp-end t))
+  
+        ; if a sexp extends beyond fill-column, fill before it starts
+        (if (and (char-after)
+                 (eq (char-syntax (char-after)) ?\())
+            (let* ((too-long
+                  (>= (save-excursion (fillcode-forward-sexp) (current-column))
+                      fill-column))
+;;                   (last-fill-pt (catch 'no-fill-point
+;;                                   (fillcode-find-fill-point-backward) nil))
+;;                   (indenting-helps
+;;                    (and last-fill-pt
+;;                         (< (fillcode-get-indent-column) last-fill-pt)))
+                  )
+              (if too-long
+;;                   (and too-long indenting-helps)
+                  (fillcode-fill-at-fill-point 'backward))
+              (forward-char)
+              (if (fillcode arg)
+                  (fillcode-fill-at-fill-point 'forward))))))
+
+    ; return t if we filled, nil otherwise
+    filled))
 
     ; hit the end of the expression
 ;;     (scan-error t)))
 ;;         (fillcode-collapse-whitespace-forward)))))
 
-(defun fillcode-fill-at-last-fill-point ()
-  "Fill at the first fill point before point.
-If there is no fill point before point, do nothing."
-  (save-excursion
-    (catch 'no-fill-point
-      (fillcode-find-fill-point-backward)
-      (insert "\n")
-      (indent-according-to-mode)
+(defun fillcode-fill-at-fill-point (direction)
+  "Fill at the nearest fill point.
+Nearest fill point is found either before or after point, depending on
+whether direction is 'backward or 'forward, respectively.
+
+Moves point to the first non-whitespace character on the line after the fill.
+
+If filling brings the new line to the same point as it was on the previous
+line, doesn't fill."
+  (catch 'no-fill-point
+    (let ((orig-pt (point)))
+      (if (eq direction 'forward)
+          (fillcode-find-fill-point-forward)
+        (fillcode-find-fill-point-backward))
+      (let ((orig-col (current-column))
+            (fill-pt (point)))
+        (insert "\n")
+        (indent-according-to-mode)
+        (if (>= (current-column) orig-col)
+            (progn
+              (delete-region fill-pt (point))
+              (goto-char orig-pt)))
+      t))))
+
+(defun fillcode-forward ()
+  "Move forward to the next 'interesting' character. (Word-constituent
+characters (letters, numbers, underscores, etc.) and whitespace are not
+interesting.) Uses the current syntax table and `skip-syntax-forward'.
+
+If point is already on an interesting character, more forward just one
+character.
+
+Return t if it moved point at all, nil otherwise."
+  (if (eolp)
+      nil
+    (progn
+      (if (eq (skip-syntax-forward "w_ ") 0)
+          (forward-char))
       t)))
 
 (defun fillcode-forward-sexp ()
-  "Run forward-sexp safely.
-If it raises scan-error, move to the end of the line. Return t if it moved
-forward, nil if it failed, didn't move, or ended up at the end of the line."
-  (let ((start (point)))
-    (condition-case nil (forward-sexp)
-      (scan-error (end-of-line)))
-    (and (not (eq start (point)))
-         (not (eolp)))))
-
-(defun fillcode-sexp-length ()
-  "Return the length of the sexp at point.
-If point is not at the beginning of a sexp, return nil."
-  (if (not (eq (char-syntax (char-after)) ?\())
+  "Call forward-sexp and catch any errors.
+Return t if it moved point at all, nil otherwise."
+  (if (eolp)
       nil
-    (progn
-      (mark-sexp)
-      (- (mark) (point)))))
+    (condition-case nil (forward-sexp)
+      (scan-error
+       (forward-char)
+       t))))
 
-(defun fillcode-get-sexp-indent-column ()
-  "Return the indent column of the sexp at point.
-If point is not at the beginning of a sexp, return nil."
-  ; start at the open paren
-  (save-excursion
-    (if (not (eq (char-syntax (char-after)) ?\())
-        nil  ; point is not at the beginning of a sexp
-      (progn
-        (forward-char)
-        ; python-mode needs at least one non-whitespace char after the open
-        ; paren to indent to the right column
-        (forward-char)
-        (insert "\n")
-        (indent-according-to-mode)
-        (let ((col (current-column)))
-            ; undo the insertion and indent (they merge into one undo entry)
-          (primitive-undo 1 buffer-undo-list)
-          col)))))
+;; (defun fillcode-sexp-length ()
+;;   "Return the length of the sexp at point.
+;; If point is not at the beginning of a sexp, return nil."
+;;   (if (not (eq (char-syntax (char-after)) ?\())
+;;       nil
+;;     (progn
+;;       (mark-sexp)
+;;       (- (mark) (point)))))
+
+;; (defun fillcode-get-sexp-indent-column ()
+;;   "Return the indent column of the sexp at point.
+;; If point is not at the beginning of a sexp, return nil."
+;;   ; start at the open paren
+;;   (save-excursion
+;;     (if (not (eq (char-syntax (char-after)) ?\())
+;;         nil  ; point is not at the beginning of a sexp
+;;       (progn
+;;         (forward-char)
+;;         ; python-mode needs at least one non-whitespace char after the open
+;;         ; paren to indent to the right column
+;;         (forward-char)
+;;         (insert "\n")
+;;         (indent-according-to-mode)
+;;         (let ((col (current-column)))
+;;             ; undo the insertion and indent (they merge into one undo entry)
+;;           (primitive-undo 1 buffer-undo-list)
+;;           col)))))
+
+;; (defun fillcode-get-indent-column ()
+;;   "Return the current indent column."
+;;   (let ((orig-point (point)))
+;;     (insert "\n")
+;;     (indent-according-to-mode)
+;;     (let ((col (current-column)))
+;;       (delete-region orig-point (point))  ; undo the insertion and indent
+;;       col)))
 
 (defun fillcode-beginning-of-statement ()
   "Return the start position of the statement that point is currently in.
@@ -309,8 +368,10 @@ for safety, just uses the end of the line."
      ; will go to the *previous* statement. so, first move past a
      ; non-whitespace character.
      (beginning-of-line)
-     (re-search-forward (concat "[^" fillcode-whitespace-chars "]"))
-     (condition-case nil (c-beginning-of-statement) (error nil))
+     (condition-case nil
+         (re-search-forward (concat "[^" fillcode-whitespace-chars "]"))
+       (error nil))
+     (c-beginning-of-statement)
      (point-at-bol))
 
     ((python-mode)
@@ -331,24 +392,23 @@ for safety, just uses the end of the line."
 Uses the major mode's end-of-statement function, if it has one. Otherwise,
 for safety, just uses the end of the line."
   (save-excursion
-  (case major-mode
-    ((c-mode c++-mode java-mode objc-mode perl-mode)
-     ; c-end-of-statement does the right thing with if conditions, for
-     ; statements, {...} blocks, and normal statements that end with semicolon.
-     (c-end-of-statement))
+    (case major-mode
+      ((c-mode c++-mode java-mode objc-mode perl-mode)
+       ; c-end-of-statement does the right thing with if conditions, for
+       ; statements, {...} blocks, and statements that end with semicolon.
+       (c-end-of-statement))
 
-    ((python-mode)
-       (let ((start (point)))
-         (if (if (functionp 'py-goto-statement-below)
-                 (py-goto-statement-below)
-               (python-next-statement))
-             (search-backward ")" start 'p)
-           (condition-case nil (forward-char) (error nil))))))
-
-    ;`c-end-of-statement' might be a good fallback for unknown languages,
-    ; but it occasionally fails badly, e.g. in `perl-mode'.
-;;     (otherwise
-  (point-at-eol)))
+      ((python-mode)
+         (let ((start (point)))
+           (if (if (functionp 'py-goto-statement-below)
+                   (py-goto-statement-below)
+                 (python-next-statement))
+               (search-backward ")" start 'p)
+             (condition-case nil (forward-char) (error nil))))))
+  
+      ;`c-end-of-statement' might be a good fallback for unknown languages,
+      ; but it occasionally fails badly, e.g. in `perl-mode'.
+    (point-at-eol)))
 
 
 (defun fillcode-normalize-whitespace ()
@@ -419,6 +479,7 @@ point to next non-whitespace char."
      ; ...otherwise, base case: advance one char
      (t (forward-char)))))
 
+
 (defun fillcode-should-fill ()
   "Return t if we should fill at the last fill point, nil otherwise.
 
@@ -428,22 +489,23 @@ We should fill if:
 
 - we're not in a comment or string literal, AND EITHER
 
-- the current char is at or beyond `fill-column' OR
+- the current char is at or beyond `fill-column'
 
-- the current char is the close paren of a nested call, and the next char is a
-  comma. (have to look ahead like this so that we don't end up past the close
-  paren, and miss the close paren base case, which would screw up the stack.)"
+;; - the current char is the close paren of a nested call, and the next char is a
+;;   comma. (have to look ahead like this so that we don't end up past the close
+;;   paren, and miss the close paren base case, which would screw up the stack.)"
   (and
    ; not in a comment or string literal?
    (not (fillcode-in-literal))
    ; past fill-column?
-   (or (>= (current-column) fill-column)
+;;    (or
+    (>= (current-column) fill-column)
        ; this is a close paren, and next is a fill point past fill-column?
-       (save-excursion
-         (and (looking-at ")")
-              (skip-chars-forward (concat ") " fillcode-whitespace-chars))
-              (looking-at fillcode-fill-point-re)
-              (>= (current-column) fill-column))))
+;;        (save-excursion
+;;          (and (looking-at ")")
+;;               (skip-chars-forward (concat ") " fillcode-whitespace-chars))
+;;               (looking-at fillcode-fill-point-re)
+;;               (>= (current-column) fill-column))))
    ; fill point on this line?
    (save-excursion
      (catch 'no-fill-point
@@ -500,8 +562,8 @@ If there's no fill point on the current line, throws `no-fill-point'."
   ; can't fill if we're in or immediately after a comment or string literal,
   ; or - if we're sticky - in an open paren.
   (if (or (fillcode-in-literal)
-          (and fillcode-open-paren-sticky
-               (equal "(" (substring (match-string 0) 0 1)))
+;;           (and fillcode-open-paren-sticky
+;;                (equal "(" (substring (match-string 0) 0 1)))
           (save-excursion (backward-char) (fillcode-in-literal)))
       (fillcode-find-fill-point-helper re-search-fn bound)))
 
@@ -523,6 +585,9 @@ return non-nil if we're past the first char of the start token, so
                               'py-in-literal 'python-in-string/comment))
            (otherwise 'c-in-literal)))
         (literal-start-tokens
+            ;; TODO: replace this with syntax table stuff (specifically,
+            ;; skip over any chars with syntax descriptor *flags* 1, 2, 3,
+            ;; or 4. but how to get the flags? char-syntax can't. :/
          (case major-mode
            ((c-mode c++-mode java-mode objc-mode perl-mode)
             '("//" "/*"))
@@ -538,23 +603,6 @@ return non-nil if we're past the first char of the start token, so
                                          (max (1- (point)) (point-min))
                                          (min (1+ (point)) (point-max)))))
                              literal-start-tokens))))))
-
-
-(defun fillcode-inside (str &optional moved)
-  "Return non-nil if point is on the given string.
-Here, \"on\" means that point is on any of the characters in the string."
-  (let ((moved (if moved moved 0)))
-    (condition-case nil
-        (if (< moved (length str))      ; base case
-            (or (equal str
-                       (buffer-substring (point)
-                                         (min (+ (point) (length str))
-                                              (point-max))))
-                (save-excursion
-                  (backward-char)
-                  (fillcode-inside str (1+ moved)))))
-      (error nil))))
-
 
 (provide 'fillcode)
 

@@ -1,4 +1,4 @@
-# -*- mode: python; fill-column: 12 -*-
+# -*- mode: c++; fill-column: 12 -*-
 #
 # to make the tar.gz package:
 #
@@ -6,6 +6,18 @@
 # tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
 #  --exclude fillcode/fillcode --exclude \*.patch fillcode
 # rm -f fillcode
+
+foo(bar) foo(baz, baj)
+
+foo(bar, baz(a, b));
+
+foo("bar + bar" + baz + "baj + baj");
+
+foo(barbar(baz));
+bar;
+
+foo(x(y, z), a(b, c));
+
 
 foo(
 )
@@ -28,9 +40,7 @@ foo(
 
 foo(bar, baz(baj))
 
-foo(a,
-    b(c, d,
-      e))
+foo(a, b(c, d, e))
 
 foo(bar.baz)
 
@@ -50,7 +60,7 @@ foo(barbar(baz))
 
 foo(barbarbar   ,baz(x), baf)
 
-foo(bar==asdf+baz-baj/baf*bap)
+foo(bar == asdf + baz-baj / baf*bap)
 
 qwert(asdf,baz,bar, qwert baj)
     foo();
@@ -91,7 +101,8 @@ foo(bar); // baz, baj
 foo(// bar
     bajbaj, bax);
 
-BufferedWriter bW = new BufferedWriter(new FileWriter(albumDir_.getPath()+xyz+bigImg+
+BufferedWriter bW = new BufferedWriter(new FileWriter(albumDir_.getPath()+xyz+
+                                                      bigImg+
                                                       ".html")));
 
 
