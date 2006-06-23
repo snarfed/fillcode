@@ -28,7 +28,6 @@
 ;;
 ;; TODO:
 ;; - fillcode still fills previous statement in cc-mode multi-line comments
-;; - if non-sticky, first arg goes to next line but indents to same place! boo.
 ;; - python (and other) comments are filled *out of the comment* if they pass
 ;;   the fill column. e.g.:
 ;;   foo(bar,  # i like bar
@@ -119,24 +118,6 @@ it needs a chance to run (without narrowing!), which this advice provides."
   "Fill code"
   :group 'fill)
 
-;; (defcustom fillcode-open-paren-sticky nil
-;;   "If non-nil, fillcode will not fill after the beginning of a subexpression.
-;; For example, if non-nil, fillcode will fill this:
-
-;; foo(bar, baz(baj))
-
-;; to
-
-;; foo(bar,
-;;     baz(baj))
-
-;; If nil, it will fill to:
-
-;; foo(bar, baz(
-;;     baj))"
-;;   :type 'boolean
-;;   :group 'fillcode)
-
 (defcustom fillcode-fill-point-re
   ;; note that inside a [...] group, - is used to specify ranges...so
   ;; to match it itself, it has to be at the beginning or end.
@@ -225,15 +206,15 @@ if it thinks the point is on a statement that has one.
 Returns t if it actually filled somewhere (not including just normalizing
 whitespace), nil otherwise."
 
-  ; the main loop. advances through the statement, filling as necessary. the
-  ; main loop should run once once and only once for each printable
-  ; character. when we hit the fill-column, fill intelligently.
-;;   (let ((indent-to (fillcode-get-sexp-indent-column)))
-;;     (let ((c (char-to-string (char-after))))
+  ; the main loop. advances through the statement, filling as necessary.
   (let ((filled nil))
     (catch 'sexp-end
       (while (fillcode-forward)
-;;       (edebug)
+;;         (edebug)
+        ; skip literals
+        (while (fillcode-in-literal)
+          (forward-char))
+
         ; fill if we need to
         (if (fillcode-should-fill)
             (progn
@@ -246,19 +227,10 @@ whitespace), nil otherwise."
             (throw 'sexp-end t))
   
         ; if a sexp extends beyond fill-column, fill before it starts
-        (if (and (char-after)
-                 (eq (char-syntax (char-after)) ?\())
-            (let* ((too-long
-                  (>= (save-excursion (fillcode-forward-sexp) (current-column))
-                      fill-column))
-;;                   (last-fill-pt (catch 'no-fill-point
-;;                                   (fillcode-find-fill-point-backward) nil))
-;;                   (indenting-helps
-;;                    (and last-fill-pt
-;;                         (< (fillcode-get-indent-column) last-fill-pt)))
-                  )
-              (if too-long
-;;                   (and too-long indenting-helps)
+        (if (and (char-after) (eq (char-syntax (char-after)) ?\())
+            (progn
+              (if (>= (save-excursion (fillcode-forward-sexp) (current-column))
+                      fill-column)
                   (fillcode-fill-at-fill-point 'backward))
               (forward-char)
               (if (fillcode arg)
@@ -266,10 +238,6 @@ whitespace), nil otherwise."
 
     ; return t if we filled, nil otherwise
     filled))
-
-    ; hit the end of the expression
-;;     (scan-error t)))
-;;         (fillcode-collapse-whitespace-forward)))))
 
 (defun fillcode-fill-at-fill-point (direction)
   "Fill at the nearest fill point.
@@ -359,9 +327,9 @@ Return t if it moved point at all, nil otherwise."
 ;;       col)))
 
 (defun fillcode-beginning-of-statement ()
-  "Return the start position of the statement that point is currently in.
-Uses the major mode's end-of-statement function, if it has one. Otherwise,
-for safety, just uses the end of the line."
+  "Return the start position of the statement that point is currently in. Uses
+the major mode's beginning-of-statement function, if it has one. Otherwise, for
+safety, just uses the beginning of the line."
   (case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
      ; if we're at the beginning of the statement, `c-beginning-of-statement'
@@ -514,12 +482,11 @@ We should fill if:
 
 
 ;; (defun fillcode-find-fill-point ()
-;;   "Move point to the closest fill point on the current line.
-;; Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
-;; eventually arithmetic operators, ||s, &&s, etc. This function attempts to find
-;; the closest fill point that's before point and before `fill-column'. If there
-;; are no appropriate fill points before point, it settles for the closest one
-;; after point.
+;;   "Move point to the closest fill point on the current line. Fill points are
+;; defined by `fillcode-fill-point-re'; commas, open parens, arithmetic operators,
+;; ||s, &&s, etc. This function attempts to find the closest fill point that's
+;; before point and before `fill-column'. If there are no appropriate fill points
+;; before point, it settles for the closest one after point.
 
 ;; If there's no fill point on the current line, throws `no-fill-point'."
 ;;   (move-to-column fill-column)
@@ -548,9 +515,10 @@ We should fill if:
 
 (defun fillcode-find-fill-point-helper (re-search-fn bound)
   "Move to the closest fill point on the current line.
-Fill points are commas, open parens (if fillcode-open-paren-sticky is nil) and
-eventually arithmetic operators, ||s, &&s, etc. This function finds the
-closest one either before or after point, depending on `forward'.
+
+Fill points are defined by `fillcode-fill-point-re'; commas, open parens,
+arithmetic operators, ||s, &&s, etc. This function finds the closest one either
+before or after point, depending on `forward'.
 
 If there's no fill point on the current line, throws `no-fill-point'."
   (condition-case nil
@@ -559,11 +527,8 @@ If there's no fill point on the current line, throws `no-fill-point'."
 
   (goto-char (1- (match-end 0)))
 
-  ; can't fill if we're in or immediately after a comment or string literal,
-  ; or - if we're sticky - in an open paren.
+  ; can't fill if we're in or immediately after a comment or string literal
   (if (or (fillcode-in-literal)
-;;           (and fillcode-open-paren-sticky
-;;                (equal "(" (substring (match-string 0) 0 1)))
           (save-excursion (backward-char) (fillcode-in-literal)))
       (fillcode-find-fill-point-helper re-search-fn bound)))
 

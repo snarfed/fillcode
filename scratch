@@ -1,4 +1,4 @@
-# -*- mode: c++; fill-column: 12 -*-
+# -*- mode: python; fill-column: 12 -*-
 #
 # to make the tar.gz package:
 #
@@ -6,8 +6,20 @@
 # tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
 #  --exclude fillcode/fillcode --exclude \*.patch fillcode
 # rm -f fillcode
+baz;
+foo(// bar
+bajbaj, bax);
 
-foo(bar) foo(baz, baj)
+bar;
+
+foo(bar, #baz ,baj,
+    bax);
+
+foo;
+
+foo(barbar(baz));
+bar;
+foo(bar) foo(baz, baj);
 
 foo(bar, baz(a, b));
 

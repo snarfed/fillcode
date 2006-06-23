@@ -154,16 +154,15 @@
 
 
 ; test cases
-;; (deftest no-function-to-fill
-;;   (fillcode-test "" "")
-;;   (fillcode-test ";")
-;; ;;   (fillcode-test ")")
-;;   (fillcode-test ");")
-;;   (fillcode-test "foo;")
-;;   (fillcode-test "foo);"))
+(deftest no-function-to-fill
+  (fillcode-test "" "")
+  (fillcode-test ";")
+  (fillcode-test ");")
+  (fillcode-test "foo;")
+  (fillcode-test "foo);"))
 
 (deftest no-args
-;;   (fillcode-test "();")
+  (fillcode-test "();")
   (fillcode-test "foo();")
   (fillcode-test "foo(\n);" "foo();")
   (fillcode-test "foo(\n\n);" "foo();"))
@@ -176,10 +175,7 @@
   (fillcode-test "foo(bar, baz );" "foo(bar, baz);")
   (fillcode-test "foo( bar, baz);" "foo(bar, baz);")
   (fillcode-test "foo( bar, baz );" "foo(bar, baz);")
-  (fillcode-test "foo(bar
-);
-baz;" "foo(bar);
-baz;"))
+  (fillcode-test "foo(bar\n);" "foo(bar);"))
 
 (deftest comma-whitespace
   (fillcode-test "foo(bar,baz);" "foo(bar, baz);")
@@ -265,9 +261,7 @@ foo(bar baz,
 foo(bar baz baj,
     baf bat bap);" 22))
 
-(deftest nested-non-sticky
-  (setq fillcode-open-paren-sticky nil)
-
+(deftest nested
   (fillcode-test "foo(x(y, z));" "foo(x(y, z));")
   (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
@@ -276,11 +270,10 @@ foo(bar baz baj,
 foo(bar,
     baz);" 6)
 
-  ; TODO: wtf?
-;;   (fillcode-test "foo(barbar(baz));" "
-;; foo(
-;;     barbar(
-;;            baz));" 12)
+  ; in cc-mode and friends, filling at baz brings it to the same fill column as
+  ; the second parenthesis, which doesn't help any. so it's not filled.
+  (fillcode-test-in-mode "foo(barbar(baz));" "foo(barbar(
+    baz));" 'python-mode 12)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -295,66 +288,17 @@ foo(barbarbar,
 foo(barbarbar,
     baz(x), baf);" 18)
 
-  ; TODO
   ; [space]
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar, baz(x),
-;;     baf);" 22)
+  (fillcode-test "foo(barbarbar, baz(x), baf);" "
+foo(barbarbar, baz(x),
+    baf);" 22)
 
   ; b
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar, baz(x),
-;;     baf);" 23)
+  (fillcode-test "foo(barbarbar, baz(x), baf);" "
+foo(barbarbar, baz(x),
+    baf);" 23)
 )
 
-
-;; (deftest nested-sticky
-;;   (set-variable 'fillcode-open-paren-sticky t)
-
-;;   (fillcode-test "foo(bar,baz);" "
-;; foo(bar,
-;;     baz);" 6)
-;;   (fillcode-test "foo(x(y, z));" "foo(x(y, z));")
-;;   (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
-;;   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
-
-;;   (fillcode-test "foo(bar, baz);" "
-;; foo(bar,
-;;     baz);" 6)
-
-;;   (fillcode-test "foo(barbar, baz(baj));" "
-;; foo(barbar,
-;;     baz(baj));" 13)
-
-;; ;;   ; sticky. shouldn't fill even though it extends beyond fill-column.
-;;   (fillcode-test "foo(barbar(baz));" "foo(barbar(baz));" 12)
-
-;;   ; (
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar,
-;;     baz(x), baf);" 18)
-
-;;   ; x
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar,
-;;     baz(x), baf);" 19)
-
-;;   ; )
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar,
-;;     baz(x), baf);" 20)
-
-;;   ; ,
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar,
-;;     baz(x), baf);" 21)
-
-;; ;;   TODO: these two
-;;   [space]
-;;   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-;; foo(barbarbar, baz(x),
-;;     baf);" 22)
-;; )
 
 (deftest arithmetic
   ; these are ok as is
@@ -415,11 +359,11 @@ foo(bar +
   ;; if there are multiple top-level parenthetic expressions, we should fill
   ;; all of them, not just the first
   (fillcode-test "foo(bar) foo(baz,baj);" "foo(bar) foo(baz, baj);")
-;;   (fillcode-test "foo(bar) foo(baz,baj);" "
-;; foo(bar) foo(baz,
-;;              baj);" 18)
+  (fillcode-test "foo(bar) foo(baz,baj);" "
+foo(bar) foo(baz,
+             baj);" 18)
 
-  ;; ...even if they span multiple lines. (or not. TODO for later maybe.)
+  ;; ...even if they span multiple lines. (not yet. TODO for later maybe.)
 ;;   (fillcode-test "if (bar) \\\n  foo(baz,baj);" "
 ;; if (bar) \\
 ;;   foo(baz,
@@ -467,78 +411,104 @@ foo(\"bar + bar\" +
   (fillcode-test-in-mode "foo(bar); // baz, baj" nil 'java-mode 16)
   ; emacs 21's python.el doesn't set `fill-paragraph-function', so it doesn't
   ; fill this line...but emacs 22's python.el does. i haven't yet figured out
-  ; how to make this test portable. :/
+  ; how to make this test portable. :/)
   (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
 
-  ;; TODO
-;;    (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(bar,
-;;     /*baz ,baj*/,
-;;     bax);" 'java-mode 6)
-;;    (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(bar,
+  (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(bar,
+    /*baz ,baj*/,
+    bax);" 'java-mode 6)
+
+  ;; TODO: rest-of-line comments are tricky because it can't normalize them
+  ;; into a single line with the rest of the statement. hrmph. what to do?
+  (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(bar,
+    //baz ,baj,
+    bax);" 'c++-mode 6)
+
+  ; py-in-literal in python-mode.el 4.6.18.2 (the old one maintained w/python)
+  ; is buggy. when it's used in the test below. it returns nil when it's inside
+  ; the comment. :/
+;;   (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(bar,
 ;;     #baz ,baj,
 ;;     bax);" 'python-mode 6)
 
-;;    (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(bar,
-;;     //baz ,baj,
-;;     bax);" 'c++-mode 6)
+  (fillcode-test-in-mode "foo(// bar, baz
+   bajbaj, bax);" "
+foo(// bar, baz
+    bajbaj,
+    bax);" 'java-mode 12)
 
 
-  ;; TODO: get c++ comments working
-;;   (fillcode-test-in-mode "
-;; foo(// bar, baz
-;;    bajbaj, bax);" "
-;; foo(// bar, baz
-;;     bajbaj,
-;;     bax);" 'java-mode 12)
-
-  ;; literals should still be normalized *around*, though
+  ;; literals should still be normalized *around*
   (fillcode-test "foo(\"bar\",\"baz\");" "foo(\"bar\", \"baz\");"))
+
+  ;; and after
+  (fillcode-test-in-mode "foo(//bar\nbaz ,\nbaj);" "
+foo(//bar
+    baz, baj);" 'java-mode)
 
 ; if there's a prefix argument, fill at all top-level fill points. fill at
 ; other fill points only as needed.
-;; (deftest prefix-argument
-;;   (test-prefix-argument t)
-;;   (test-prefix-argument nil))
+;; (deftest prefix-argument ()
+;;   (fillcode-test "foo(bar);" 80 t)
+
+;;   (fillcode-test "foo(bar,baz);" "
+;; foo(bar,
+;;     baz);" 80 t)
+
+;;   (fillcode-test "foo(bar,baz);" "
+;; foo(bar,
+;;     baz);" 12 t)
+
+;;   (fillcode-test "foo(bar,baz(baj));" "
+;; foo(bar,
+;;     baz(baj));" 80 t)
+
+;;   (fillcode-test "foo(bar,baz(baj, bak));" "
+;; foo(bar,
+;;     baz(baj, bak));" 80 t)
+
+;;   (fillcode-test "foo(baz(baj, bak), bar);" "
+;; foo(baz(baj, bak),
+;;     bar);" 80 t ))
 
 
 ;; test fillcode-beginning-of-statement and fillcode-end-of-statement with
 ;; the given buffer contents and mode (adding semicolons as needed). they're
 ;; tried with point at begin, end, and halfway between. begin and end are
 ;; the expected values.
-;; (defun test-boundaries (contents begin end)
-;;   ; try all three modes
-;;   (dolist (mode '(python-mode c++-mode java-mode))
-;;     ; set up the buffer
-;;     (with-temp-buffer
-;;       (prepare-buffer contents mode)
-;;       ; try at beginning, end, and in between
-;;       (dolist (point (list begin end
-;;                            (+ begin (/ (- end begin) 2))))
-;;         (progn
-;;           (goto-char point)
-;;           (assert-equal begin (fillcode-beginning-of-statement))
-;;           (assert-equal (if (member major-mode '(c++-mode java-mode))
-;;                             (1+ end) end)
-;;                         (fillcode-end-of-statement)))))))
+(defun test-boundaries (contents begin end)
+  ; try all three modes
+  (dolist (mode '(python-mode c++-mode java-mode))
+    ; set up the buffer
+    (with-temp-buffer
+      (toggle-mode-clean mode)
+      (insert-string contents) ; *after* setting mode
+      ; try at beginning, end, and in between
+      (dolist (point (list begin end
+                           (+ begin (/ (- end begin) 2))))
+        (progn
+          (goto-char point)
+          (assert-equal begin (fillcode-beginning-of-statement))
+          (assert-equal end (fillcode-end-of-statement)))))))
 
-;; (deftest statement-boundaries
-;;   ;; note that (point-min) is 1
-;;   (test-boundaries "foo();\nbar();" 1 6)
-;;   (test-boundaries "foo();\nbar();" 7 12)
+(deftest statement-boundaries
+  ;; note that (point-min) is 1
+  (test-boundaries "foo();\nbar();" 1 7)
+  (test-boundaries "foo();\nbar();" 8 14)
 
-;;   (test-boundaries "foo();\nbar( x );" 1 6)
-;;   (test-boundaries "foo()'\nbar( x );" 7 15)
+  (test-boundaries "foo();\nbar( x );" 1 7)
+  (test-boundaries "foo();\nbar( x );" 8 17)
 
-;;   (test-boundaries "foo(x );\nbar(y);" 1 8)
-;;   (test-boundaries "foo(x );\nbar(y);" 9 15)
+  (test-boundaries "foo(x );\nbar(y);" 1 9)
+  (test-boundaries "foo(x );\nbar(y);" 10 17)
 
-;;   ; point is at the beginning of the buffer, so *only* the first statement
-;;   ; should be filled
-;;   (fillcode-test "foo(y);\nbar( x)" "foo(y);\nbar( x)")
+  ; point is at the beginning of the buffer, so *only* the first statement
+  ; should be filled
+  (fillcode-test "foo(y);\nbar( x)" "foo(y);\nbar( x)")
 
-;;   ; open parens after fill points shouldn't trip us up
-;;   (fillcode-test "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)")
-;;   )
+  ; open parens after fill points shouldn't trip us up
+  (fillcode-test "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)")
+  )
 
 (deftest heuristics
   ; don't fill inside a subexpression if it would fit on one line
@@ -556,30 +526,5 @@ foo(bar(bazbaz,
   (fillcode-test "foo(barbarbar, (x, y), baz);" "
 foo(barbarbar,
     (x, y), baz);" 19))
-
-(defun test-prefix-argument (sticky)
-  (set-variable 'fillcode-open-paren-sticky sticky)
-
-  (fillcode-test "foo(bar);" 80 t)
-
-  (fillcode-test "foo(bar,baz);" "
-foo(bar,
-    baz);" 80 t)
-
-  (fillcode-test "foo(bar,baz);" "
-foo(bar,
-    baz);" 12 t)
-
-  (fillcode-test "foo(bar,baz(baj));" "
-foo(bar,
-    baz(baj));" 80 t)
-
-  (fillcode-test "foo(bar,baz(baj, bak));" "
-foo(bar,
-    baz(baj, bak));" 80 t)
-
-  (fillcode-test "foo(baz(baj, bak), bar);" "
-foo(baz(baj, bak),
-    bar);" 80 t ))
 
 
