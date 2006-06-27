@@ -6,6 +6,12 @@
 # tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
 #  --exclude fillcode/fillcode --exclude \*.patch fillcode
 # rm -f fillcode
+
+bar;
+
+def foo():
+  self.assertEqual([('y', DESC), ('z', ASC)], orderings('y DESCENDING, z ASCENDING'))
+
 baz;
 foo(// bar
 bajbaj, bax);

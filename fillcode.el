@@ -210,7 +210,7 @@ whitespace), nil otherwise."
   (let ((filled nil))
     (catch 'sexp-end
       (while (fillcode-forward)
-;;         (edebug)
+        (edebug)
         ; skip literals
         (while (fillcode-in-literal)
           (forward-char))
@@ -389,6 +389,7 @@ Uses `fillcode-collapse-whitespace-forward'."
   (save-excursion (save-restriction
     (goto-char (fillcode-beginning-of-statement))
     (narrow-to-region (point) (fillcode-end-of-statement))
+    (skip-chars-forward fillcode-whitespace-chars)  ; preserve indentation
     (while (not (eobp))
       (fillcode-collapse-whitespace-forward)))))
 

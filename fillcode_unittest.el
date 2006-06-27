@@ -155,7 +155,7 @@
 
 ; test cases
 (deftest no-function-to-fill
-  (fillcode-test "" "")
+  (fillcode-test "")
   (fillcode-test ";")
   (fillcode-test ");")
   (fillcode-test "foo;")
@@ -211,6 +211,13 @@
   (fillcode-test "foo(bar\n\n  ,baz);" "foo(bar,\n    baz);" 9)
   (fillcode-test "foo(bar,\n\n  baz);" "foo(bar,\n    baz);" 9)
   (fillcode-test "foo(\n  bar, baz\n\n  );" "foo(bar,\n    baz);" 9))
+
+(deftest indentation
+  ; indentation at the beginning of the line should be preserved
+  (fillcode-test "foo();")
+  (fillcode-test " foo();")
+  (fillcode-test "  foo();")
+  (fillcode-test "    foo();"))
 
 (deftest simple-fill
   (fillcode-test "foo(bar, baz);" "
