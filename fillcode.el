@@ -118,19 +118,34 @@ it needs a chance to run (without narrowing!), which this advice provides."
   "Fill code"
   :group 'fill)
 
+(defcustom fillcode-expression-boundary-re
+  ;; note that inside a [...] group, - is used to specify ranges...so
+  ;; to match it itself, it has to be at the beginning or end.
+  (concat ", \\|"
+          ; an open paren is a fill point only if it's not followed by a
+          ; close paren
+          "[[({]"
+          "[^])}]")
+  "A regular expression used to determine boundaries between subexpressions.
+These can be thought of as more powerful fill points. Fillcode prefers to
+fill at these points to keep subexpressions together.
+
+They can also be thought of as the top level in the fill point 'order of
+operations'. These take precedence over other fill points.
+
+You may modify this to allow fillcode to handle new languages."
+  :type 'string
+  :group 'fillcode)
+
 (defcustom fillcode-fill-point-re
   ;; note that inside a [...] group, - is used to specify ranges...so
   ;; to match it itself, it has to be at the beginning or end.
-  (concat "\\(\\("
-                 "[,/+]\\|"
+  (concat fillcode-expression-boundary-re
+          "\\(\\("
+                 "[/+]\\|"
                  "==\\|!=\\|||\\|&&\\|<=\\|>="
               "\\)"
               "[^=>/*+]"
-              "\\|"
-              ; an open paren is a fill point only if it's not followed by a
-              ; close paren
-              "[[({]"  ; "\\("
-              "[^])}]" ; "\\|$\\)"
           "\\)\\|"
           ; asterisks are used as pointers in c and c++, so to be
           ; conservative, they're only fill points if they're surrounded by
@@ -140,7 +155,6 @@ it needs a chance to run (without narrowing!), which this advice provides."
           ; minus signs are only fill points if they're not being used as a
           ; negative sign
           "-[ \t\n(]")
-
   "A regular expression used to find the next fill point.
 A fill point is a point in an expression where a newline can reasonably be
 inserted. This regular expression identifies fill points. It must end one
@@ -185,8 +199,10 @@ Intended to be set as `fill-paragraph-function'."
            (funcall fillcode-wrapped-fill-function arg)))))
 
 
-    ; if the wrapped fill function did something, don't do anything more
-    (if ret
+    ; if the wrapped fill function did something, or we're possibly in a
+    ; multi-line literal, don't do anything more
+    (if (or ret
+            (member (fillcode-in-literal) '(c c++ comment)))
         ret
       ; otherwise, normalize whitespace and fill
       (save-excursion 
@@ -205,12 +221,13 @@ if it thinks the point is on a statement that has one.
 
 Returns t if it actually filled somewhere (not including just normalizing
 whitespace), nil otherwise."
-
   ; the main loop. advances through the statement, filling as necessary.
+  ; recursive so we can easily determine, after we've finished with a
+  ; subexpression, whether we filled inside it.
   (let ((filled nil))
     (catch 'sexp-end
       (while (fillcode-forward)
-        (edebug)
+;;         (edebug)
         ; skip literals
         (while (fillcode-in-literal)
           (forward-char))
@@ -229,8 +246,7 @@ whitespace), nil otherwise."
         ; if a sexp extends beyond fill-column, fill before it starts
         (if (and (char-after) (eq (char-syntax (char-after)) ?\())
             (progn
-              (if (>= (save-excursion (fillcode-forward-sexp) (current-column))
-                      fill-column)
+              (if (< fill-column (fillcode-fill-point-column-after-sexp))
                   (fillcode-fill-at-fill-point 'backward))
               (forward-char)
               (if (fillcode arg)
@@ -247,21 +263,24 @@ whether direction is 'backward or 'forward, respectively.
 Moves point to the first non-whitespace character on the line after the fill.
 
 If filling brings the new line to the same point as it was on the previous
-line, doesn't fill."
-  (catch 'no-fill-point
-    (let ((orig-pt (point)))
-      (if (eq direction 'forward)
-          (fillcode-find-fill-point-forward)
-        (fillcode-find-fill-point-backward))
-      (let ((orig-col (current-column))
-            (fill-pt (point)))
-        (insert "\n")
-        (indent-according-to-mode)
-        (if (>= (current-column) orig-col)
-            (progn
-              (delete-region fill-pt (point))
-              (goto-char orig-pt)))
-      t))))
+line, doesn't fill and leaves point where it was before."
+  (let ((orig-pt (point))
+        (find-fn (if (eq direction 'forward)
+                     'fillcode-find-fill-point-forward
+                   'fillcode-find-fill-point-backward)))
+
+    (if (funcall find-fn)
+        ; found a fill point
+        (let ((orig-col (current-column))
+              (fill-pt (point)))
+          (insert "\n")
+          (indent-according-to-mode)
+          (if (>= (current-column) orig-col)
+              (progn
+                (delete-region fill-pt (point))
+                (goto-char orig-pt))))
+      ; no fill point
+      (goto-char orig-pt))))
 
 (defun fillcode-forward ()
   "Move forward to the next 'interesting' character. (Word-constituent
@@ -288,43 +307,6 @@ Return t if it moved point at all, nil otherwise."
       (scan-error
        (forward-char)
        t))))
-
-;; (defun fillcode-sexp-length ()
-;;   "Return the length of the sexp at point.
-;; If point is not at the beginning of a sexp, return nil."
-;;   (if (not (eq (char-syntax (char-after)) ?\())
-;;       nil
-;;     (progn
-;;       (mark-sexp)
-;;       (- (mark) (point)))))
-
-;; (defun fillcode-get-sexp-indent-column ()
-;;   "Return the indent column of the sexp at point.
-;; If point is not at the beginning of a sexp, return nil."
-;;   ; start at the open paren
-;;   (save-excursion
-;;     (if (not (eq (char-syntax (char-after)) ?\())
-;;         nil  ; point is not at the beginning of a sexp
-;;       (progn
-;;         (forward-char)
-;;         ; python-mode needs at least one non-whitespace char after the open
-;;         ; paren to indent to the right column
-;;         (forward-char)
-;;         (insert "\n")
-;;         (indent-according-to-mode)
-;;         (let ((col (current-column)))
-;;             ; undo the insertion and indent (they merge into one undo entry)
-;;           (primitive-undo 1 buffer-undo-list)
-;;           col)))))
-
-;; (defun fillcode-get-indent-column ()
-;;   "Return the current indent column."
-;;   (let ((orig-point (point)))
-;;     (insert "\n")
-;;     (indent-according-to-mode)
-;;     (let ((col (current-column)))
-;;       (delete-region orig-point (point))  ; undo the insertion and indent
-;;       col)))
 
 (defun fillcode-beginning-of-statement ()
   "Return the start position of the statement that point is currently in. Uses
@@ -455,54 +437,13 @@ point to next non-whitespace char."
 We should fill if:
 
 - there's a fill point on this line, AND
-
-- we're not in a comment or string literal, AND EITHER
-
-- the current char is at or beyond `fill-column'
-
-;; - the current char is the close paren of a nested call, and the next char is a
-;;   comma. (have to look ahead like this so that we don't end up past the close
-;;   paren, and miss the close paren base case, which would screw up the stack.)"
+- we're not in a comment or string literal, AND
+- the current char is at or beyond `fill-column'"
   (and
-   ; not in a comment or string literal?
-   (not (fillcode-in-literal))
-   ; past fill-column?
-;;    (or
-    (>= (current-column) fill-column)
-       ; this is a close paren, and next is a fill point past fill-column?
-;;        (save-excursion
-;;          (and (looking-at ")")
-;;               (skip-chars-forward (concat ") " fillcode-whitespace-chars))
-;;               (looking-at fillcode-fill-point-re)
-;;               (>= (current-column) fill-column))))
-   ; fill point on this line?
+   (not (fillcode-in-literal))               ; not in a literal?
+   (>= (current-column) fill-column)         ; past fill-column?
    (save-excursion
-     (catch 'no-fill-point
-       (fillcode-find-fill-point-backward)
-       t))))
-
-
-;; (defun fillcode-find-fill-point ()
-;;   "Move point to the closest fill point on the current line. Fill points are
-;; defined by `fillcode-fill-point-re'; commas, open parens, arithmetic operators,
-;; ||s, &&s, etc. This function attempts to find the closest fill point that's
-;; before point and before `fill-column'. If there are no appropriate fill points
-;; before point, it settles for the closest one after point.
-
-;; If there's no fill point on the current line, throws `no-fill-point'."
-;;   (move-to-column fill-column)
-
-;;   (if (not (catch 'no-fill-point
-;;              (fillcode-find-fill-point-backward)   
-;; ;;              (if (>= (current-column) fill-column)
-;;                  ; we started before fill-column. how'd we end up after it?!?
-;; ;;                  (throw 'find-fill-point-backward-moved-past-fill-column nil))
-;;              t))
-;;       ; no fill point before fill-column! take the closest one after.
-;;       (fillcode-find-fill-point-forward))
-
-;; ;;   (goto-char (1- (match-beginning 0)))
-;;   )
+     (fillcode-find-fill-point-backward))))  ; fill point on this line?
 
 
 (defun fillcode-find-fill-point-forward ()
@@ -514,6 +455,15 @@ We should fill if:
   (forward-char)
   (fillcode-find-fill-point-helper 're-search-backward (line-beginning-position)))
 
+(defun fillcode-fill-point-column-after-sexp ()
+  "Return the column of the closest fill point after the sexp at point."
+  (save-excursion
+    (fillcode-forward-sexp)
+    (if (not (fillcode-find-fill-point-forward))
+        (end-of-line))
+    (current-column)))
+
+
 (defun fillcode-find-fill-point-helper (re-search-fn bound)
   "Move to the closest fill point on the current line.
 
@@ -521,17 +471,27 @@ Fill points are defined by `fillcode-fill-point-re'; commas, open parens,
 arithmetic operators, ||s, &&s, etc. This function finds the closest one either
 before or after point, depending on `forward'.
 
-If there's no fill point on the current line, throws `no-fill-point'."
-  (condition-case nil
-      (funcall re-search-fn fillcode-fill-point-re bound)
-    (search-failed (throw 'no-fill-point nil)))
+It prefers expression boundaries, as in `fillcode-expression-boundary-re',
+and will first try to find the closest of those. It will only fall back to
+other fill points if there's no expression boundary available.
 
-  (goto-char (1- (match-end 0)))
+Returns t if it found a fill point, nil otherwise."
+  (if (condition-case nil
+;;       (funcall re-search-fn fillcode-expression-boundary-re bound)
+          (funcall re-search-fn ", " bound)
+        (search-failed (condition-case nil
+             (funcall re-search-fn fillcode-fill-point-re bound)
+           (search-failed nil))))
 
-  ; can't fill if we're in or immediately after a comment or string literal
-  (if (or (fillcode-in-literal)
-          (save-excursion (backward-char) (fillcode-in-literal)))
-      (fillcode-find-fill-point-helper re-search-fn bound)))
+      ; found a fill point
+      (progn
+        (goto-char (1- (match-end 0)))
+
+        ; can't fill if we're in or immediately after a literal
+        (if (or (fillcode-in-literal)
+                (save-excursion (backward-char) (fillcode-in-literal)))
+            (fillcode-find-fill-point-helper re-search-fn bound)
+          t))))  ; otherwise, we can fill, so return t
 
 
 (defun fillcode-in-literal ()
@@ -549,26 +509,19 @@ return non-nil if we're past the first char of the start token, so
          (case major-mode
            ((python-mode) (if (functionp 'py-in-literal)
                               'py-in-literal 'python-in-string/comment))
-           (otherwise 'c-in-literal)))
-        (literal-start-tokens
-            ;; TODO: replace this with syntax table stuff (specifically,
-            ;; skip over any chars with syntax descriptor *flags* 1, 2, 3,
-            ;; or 4. but how to get the flags? char-syntax can't. :/
-         (case major-mode
-           ((c-mode c++-mode java-mode objc-mode perl-mode)
-            '("//" "/*"))
-           (otherwise
-            '()))))
+           (otherwise 'c-in-literal))))
 
-    (or
-     ; are we in a literal?
-     (funcall in-literal-fn)
-     ; are we in any of the literal start tokens?
-     (eval (cons 'or (mapcar (lambda (x)
-                               (equal x (buffer-substring
-                                         (max (1- (point)) (point-min))
-                                         (min (1+ (point)) (point-max)))))
-                             literal-start-tokens))))))
+    ; if the major mode says point *or* the char *after* point is in a literal,
+    ; or if two chars after point is a comment, then we're in a literal.
+    (or (funcall in-literal-fn)
+        (condition-case nil
+            (save-excursion
+              (forward-char)
+              (or (funcall in-literal-fn)
+                  (progn
+                    (forward-char)
+                    (member (funcall in-literal-fn) '(c c++)))))
+          (error nil)))))
 
 (provide 'fillcode)
 

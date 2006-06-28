@@ -416,6 +416,7 @@ foo(\"bar + bar\" +
 
   ; don't fill whole-line comments (# and //)
   (fillcode-test-in-mode "foo(bar); // baz, baj" nil 'java-mode 16)
+
   ; emacs 21's python.el doesn't set `fill-paragraph-function', so it doesn't
   ; fill this line...but emacs 22's python.el does. i haven't yet figured out
   ; how to make this test portable. :/)
@@ -425,11 +426,13 @@ foo(\"bar + bar\" +
     /*baz ,baj*/,
     bax);" 'java-mode 6)
 
-  ;; TODO: rest-of-line comments are tricky because it can't normalize them
-  ;; into a single line with the rest of the statement. hrmph. what to do?
   (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(bar,
     //baz ,baj,
     bax);" 'c++-mode 6)
+
+  (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "
+foo(bar, //baz ,baj,
+    bax);" 'c++-mode 20)
 
   ; py-in-literal in python-mode.el 4.6.18.2 (the old one maintained w/python)
   ; is buggy. when it's used in the test below. it returns nil when it's inside
@@ -446,12 +449,13 @@ foo(// bar, baz
 
 
   ;; literals should still be normalized *around*
-  (fillcode-test "foo(\"bar\",\"baz\");" "foo(\"bar\", \"baz\");"))
+  ;; TODO: re-enable me!
+;;   (fillcode-test "foo(\"bar\",\"baz\");" "foo(\"bar\", \"baz\");")
 
   ;; and after
   (fillcode-test-in-mode "foo(//bar\nbaz ,\nbaj);" "
 foo(//bar
-    baz, baj);" 'java-mode)
+    baz, baj);" 'java-mode))
 
 ; if there's a prefix argument, fill at all top-level fill points. fill at
 ; other fill points only as needed.
@@ -514,22 +518,25 @@ foo(//bar
   (fillcode-test "foo(y);\nbar( x)" "foo(y);\nbar( x)")
 
   ; open parens after fill points shouldn't trip us up
-  (fillcode-test "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)")
-  )
+  (fillcode-test "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)"))
 
-(deftest heuristics
+(deftest subexpression-affinity
   ; don't fill inside a subexpression if it would fit on one line
-  (fillcode-test "foo(bar, baz(a, b));" "
+  (dolist (i '(15 16 17 18))
+    (fillcode-test "foo(bar, baz(a, b));" "
 foo(bar,
-    baz(a, b));" 16)
+    baz(a, b));" i))
 
-  ; if filled inside a subexpression, *always* fill immediately after it
-  (fillcode-test "foo(bar(bazbaz, baj), x);" "
-foo(bar(bazbaz,
-        baj),
-    x);" 19)
+  (fillcode-test-in-mode "foo(bar, baz(a, b));" "
+foo(bar,
+    baz(a, b));" 'c++-mode 19)
+
+  (fillcode-test "foo(bar, baz + baj);" "
+foo(bar,
+    baz + baj);" 15)
 
   ; ...not if it fits on a single line
+  ;; TODO: huh?
   (fillcode-test "foo(barbarbar, (x, y), baz);" "
 foo(barbarbar,
     (x, y), baz);" 19))

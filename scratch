@@ -1,11 +1,48 @@
-# -*- mode: python; fill-column: 12 -*-
-#
-# to make the tar.gz package:
-#
-# ln -s . fillcode
-# tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
-#  --exclude fillcode/fillcode --exclude \*.patch fillcode
-# rm -f fillcode
+// # -*- mode: python; fill-column: 12 -*-
+// #
+// # to make the tar.gz package:
+// #
+// # ln -s . fillcode
+// # tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
+// #  --exclude fillcode/fillcode --exclude \*.patch fillcode
+// # rm -f fillcode
+
+  bar;
+baz ,bif;
+
+// (defun fillcode-find-fill-point ()
+//   "Move point to the closest fill point on the current line. Fill points are
+// defined by `fillcode-fill-point-re'; commas, open parens, arithmetic operators,
+// ||s, &&s, etc. This function attempts to find the closest fill point that's
+// before point and before `fill-column'. If there are no appropriate fill points
+// before point, it settles for the closest one after point.
+//
+// If there's no fill point on the current line, throws `no-fill-point'."
+//   (move-to-column fill-column)
+//
+//   (if (not (catch 'no-fill-point
+//              (fillcode-find-fill-point-backward)   
+// ;;              (if (>= (current-column) fill-column)
+//                  ; we started before fill-column. how'd we end up after it?!?
+// ;;                  (throw 'find-fill-point-backward-moved-past-fill-column nil))
+//              t))
+//       ; no fill point before fill-column! take the closest one after.
+//       (fillcode-find-fill-point-forward))
+//
+// ;;   (goto-char (1- (match-beginning 0)))
+//   )
+//
+
+
+baz;
+
+foo(bar, baz);
+
+foo(bar, /*baz ,baj*/, bax);
+
+foo(barbarbar, baz(x), baf);
+
+foo(bar, baz(a, b));
 
 bar;
 
