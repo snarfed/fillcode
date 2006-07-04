@@ -155,7 +155,7 @@
 
 ; test cases
 (deftest no-function-to-fill
-  (fillcode-test "")
+;;   (fillcode-test "")
   (fillcode-test ";")
   (fillcode-test ");")
   (fillcode-test "foo;")
@@ -164,8 +164,7 @@
 (deftest no-args
   (fillcode-test "();")
   (fillcode-test "foo();")
-  (fillcode-test "foo(\n);" "foo();")
-  (fillcode-test "foo(\n\n);" "foo();"))
+  (fillcode-test "foo(\n);" "foo();"))
 
 (deftest paren-whitespace
   (fillcode-test "foo( );" "foo();")
@@ -202,15 +201,17 @@
   (fillcode-test "foo(bar  *  baz);" "foo(bar * baz);"))
 
 (deftest blank-lines
-  (fillcode-test "foo(\n\n  bar, baz);" "foo(bar, baz);")
-  (fillcode-test "foo(bar\n\n  ,baz);" "foo(bar, baz);")
-  (fillcode-test "foo(bar,\n\n  baz);" "foo(bar, baz);")
-  (fillcode-test "foo(\n  bar, baz\n\n  );" "foo(bar, baz);")
+  ; shouldn't fill across blank lines
+  (fillcode-test "foo(\n\n);")
+  (fillcode-test "foo(\n\n  bar, baz);")
+  (fillcode-test "foo(bar\n\n  ,baz);")
+  (fillcode-test "foo(bar,\n\n  baz);")
+  (fillcode-test "foo(\n  bar, baz\n\n  );" "foo(bar, baz\n\n  );")
 
-  (fillcode-test "foo(\n\n  bar, baz);" "foo(bar,\n    baz);" 9)
-  (fillcode-test "foo(bar\n\n  ,baz);" "foo(bar,\n    baz);" 9)
-  (fillcode-test "foo(bar,\n\n  baz);" "foo(bar,\n    baz);" 9)
-  (fillcode-test "foo(\n  bar, baz\n\n  );" "foo(bar,\n    baz);" 9))
+  (fillcode-test "foo(\n\n  bar, baz);" nil 9)
+  (fillcode-test "foo(bar\n\n  ,baz);" nil 9)
+  (fillcode-test "foo(bar,\n\n  baz);" nil 9)
+  (fillcode-test "foo(\n  bar, baz\n\n  );" "foo(bar, baz\n\n  );" 9))
 
 (deftest indentation
   ; indentation at the beginning of the line should be preserved

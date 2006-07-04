@@ -3,12 +3,12 @@
 // # to make the tar.gz package:
 // #
 // # ln -s . fillcode
-// # tar czhf fillcode.tar.gz --exclude fillcode.tar.gz --exclude .svn \
-// #  --exclude fillcode/fillcode --exclude \*.patch fillcode
+// # tar czhf fillcode.tar.gz fillcode/fillcode*.el fillcode/elunit
 // # rm -f fillcode
 
-  bar;
-baz ,bif;
+bif;
+bar;
+baz;
 
 // (defun fillcode-find-fill-point ()
 //   "Move point to the closest fill point on the current line. Fill points are
@@ -34,6 +34,9 @@ baz ,bif;
 //
 
 
+foo(
+
+);
 baz;
 
 foo(bar, baz);

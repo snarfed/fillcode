@@ -167,12 +167,6 @@ unfortunately absent."
   :type 'string
   :group 'fillcode)
 
-(defcustom fillcode-whitespace-chars
-  " \t"  ; *not* \n, that would break fillcode-collapse-whitespace-forward
-  "The characters that fillcode considers whitespace."
-  :type 'string
-  :group 'fillcode)
-
 
 (defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
   "Fill code at point if `fillcode-wrapped-fill-function' is nil.
@@ -318,9 +312,7 @@ safety, just uses the beginning of the line."
      ; will go to the *previous* statement. so, first move past a
      ; non-whitespace character.
      (beginning-of-line)
-     (condition-case nil
-         (re-search-forward (concat "[^" fillcode-whitespace-chars "]"))
-       (error nil))
+     (re-search-forward "\\S-" nil t)  ; whitespace
      (c-beginning-of-statement)
      (point-at-bol))
 
@@ -369,9 +361,25 @@ operators. Except string literals and comments, they're left untouched.
 
 Uses `fillcode-collapse-whitespace-forward'."
   (save-excursion (save-restriction
-    (goto-char (fillcode-beginning-of-statement))
-    (narrow-to-region (point) (fillcode-end-of-statement))
-    (skip-chars-forward fillcode-whitespace-chars)  ; preserve indentation
+    (narrow-to-region (fillcode-beginning-of-statement)
+                      (fillcode-end-of-statement))
+
+    ; don't fill across blank lines, whether they're before point...
+    (save-excursion
+      (forward-line)
+      (beginning-of-line)
+      (if (re-search-backward "\n\\s-*\n" nil t)
+          (narrow-to-region (match-end 0) (point-max))))
+    ; ...or after
+    (save-excursion
+      (forward-line -1)
+      (end-of-line)
+      (if (re-search-forward "\n\\s-*\n" nil t)
+          (narrow-to-region (point-min) (match-beginning 0))))
+
+    (beginning-of-buffer)
+    (if (re-search-forward "\\S-" (line-end-position) t)  ; preserve indentation
+        (backward-char))
     (while (not (eobp))
       (fillcode-collapse-whitespace-forward)))))
 
@@ -381,54 +389,51 @@ Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators.
 Except string literals and comments, they're left untouched. Then advance
 point to next non-whitespace char."
-  (let ((whitespace-re (concat "[" fillcode-whitespace-chars "]")))
 ;;     (edebug)
-    (cond
-     ; if we're in a string literal or comment, skip to the end of it 
-     ((fillcode-in-literal)
-      ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
-      (forward-char)
-      (if (equal "\n" (char-to-string (char-before)))
-          (indent-according-to-mode)))
+  (cond
+   ; if we're in a string literal or comment, skip to the end of it 
+   ((fillcode-in-literal)
+    ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
+    (forward-char)
+    (if (equal "\n" (char-to-string (char-before)))
+        (indent-according-to-mode)))
 
-     ; if we're at the end of the line, pull up the next line
-     ((eolp)
-      (delete-indentation t))
+   ; if we're at the end of the line, pull up the next line
+   ((eolp)
+    (delete-indentation t))
+ 
+   ; if we're on whitespace, delete it. if that brings us to a fill point,
+   ; fall down to the logic below. otherwise, normalize to exactly one space
+   ; and continue.
+   ((looking-at "\\s-")
+    (delete-horizontal-space)
+    (if (and (not (looking-at fillcode-fill-point-re))
+             (not (looking-at "(")))
+        (progn (fixup-whitespace)
+               (if (looking-at "\\s-")  ; (*not* including newlines)
+                   (forward-char)))))
 
-     ; if we're on whitespace, delete it. if that brings us to a fill point,
-     ; fall down to the logic below. otherwise, normalize to exactly one space
-     ; and continue.
-     ((looking-at whitespace-re)
-      (delete-horizontal-space)
-      (if (and (not (looking-at fillcode-fill-point-re))
-               (not (looking-at "(")))
-          (progn (fixup-whitespace)
-                 (if (looking-at whitespace-re)  ; (*not* including newlines)
-                     (forward-char)))))
+   ; if we're before a non-comma/open paren fill point, insert a space
+   ((and (looking-at fillcode-fill-point-re)
+         (not (looking-at "[,(]")))
+    (progn (insert " ") 
+           (goto-char (match-end 0))))
 
-     ; if we're before a non-comma/open paren fill point, insert a space
-     ((and (looking-at fillcode-fill-point-re)
-           (not (looking-at "[,(]")))
-      (progn (insert " ") 
-             (goto-char (match-end 0))))
+   ; if we're after a fill point, insert a space. (note that the fill point
+   ; regexp ends at the first char *after* the operator.)
+   ((and (save-excursion
+           (progn 
+             (condition-case nil (forward-char) (error nil))
+             (re-search-backward fillcode-fill-point-re (point-at-bol) t)))
+         (equal (point) (1- (match-end 0)))
+         (not (save-excursion (backward-char) (fillcode-in-literal))))
+    (progn (fixup-whitespace)
+           ; skip *past* the char we were on originally. if we inserted a
+           ; space, that's two chars forward, otherwise just one.
+           (forward-char (if (looking-at " ") 2 1))))
 
-     ; if we're after a fill point, insert a space. (note that the fill point
-     ; regexp ends at the first char *after* the operator.)
-     ((and (save-excursion
-             (condition-case nil
-                 (progn (forward-char)
-                        (re-search-backward fillcode-fill-point-re
-                                            (point-at-bol)))
-               (error nil)))
-           (equal (point) (1- (match-end 0)))
-           (not (save-excursion (backward-char) (fillcode-in-literal))))
-      (progn (fixup-whitespace)
-             ; skip *past* the char we were on originally. if we inserted a
-             ; space, that's two chars forward, otherwise just one.
-             (forward-char (if (looking-at " ") 2 1))))
-
-     ; ...otherwise, base case: advance one char
-     (t (forward-char)))))
+   ; ...otherwise, base case: advance one char
+   (t (forward-char))))
 
 
 (defun fillcode-should-fill ()
