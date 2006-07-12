@@ -314,6 +314,9 @@ safety, just uses the beginning of the line."
      (beginning-of-line)
      (re-search-forward "\\S-" nil t)  ; whitespace
      (c-beginning-of-statement)
+     ; NB: use point-at-bol for xemacs compatibility. the emacs function is
+     ; line-beginning-position; point-at-bol is just an alias. xemacs, however,
+     ; only has point-at-bol. (same with point-at-eol/line-end-position.)
      (point-at-bol))
 
     ((python-mode)
@@ -378,7 +381,8 @@ Uses `fillcode-collapse-whitespace-forward'."
           (narrow-to-region (point-min) (match-beginning 0))))
 
     (beginning-of-buffer)
-    (if (re-search-forward "\\S-" (line-end-position) t)  ; preserve indentation
+    ; preserve indentation. use point-at-eol for xemacs compatibility.
+    (if (re-search-forward "\\S-" (point-at-eol) t)
         (backward-char))
     (while (not (eobp))
       (fillcode-collapse-whitespace-forward)))))
@@ -424,6 +428,7 @@ point to next non-whitespace char."
    ((and (save-excursion
            (progn 
              (condition-case nil (forward-char) (error nil))
+             ; use point-at-bol for xemacs compatibility
              (re-search-backward fillcode-fill-point-re (point-at-bol) t)))
          (equal (point) (1- (match-end 0)))
          (not (save-excursion (backward-char) (fillcode-in-literal))))
@@ -452,13 +457,15 @@ We should fill if:
 
 
 (defun fillcode-find-fill-point-forward ()
-  (fillcode-find-fill-point-helper 're-search-forward (line-end-position)))
+  ; use point-at-eol for xemacs compatibility
+  (fillcode-find-fill-point-helper 're-search-forward (point-at-eol)))
 
 (defun fillcode-find-fill-point-backward ()
   ; the fill point regexp ends at the first char *after* the
   ; operator...so, move forward one char before searching.
   (forward-char)
-  (fillcode-find-fill-point-helper 're-search-backward (line-beginning-position)))
+  ; use point-at-bol for xemacs compatibility
+  (fillcode-find-fill-point-helper 're-search-backward (point-at-bol)))
 
 (defun fillcode-fill-point-column-after-sexp ()
   "Return the column of the closest fill point after the sexp at point."
