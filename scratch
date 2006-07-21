@@ -10,6 +10,9 @@ bif;
 bar;
 baz;
 
+foo("bar + bar" +
+    baz + "baj + baj");
+
 // (defun fillcode-find-fill-point ()
 //   "Move point to the closest fill point on the current line. Fill points are
 // defined by `fillcode-fill-point-re'; commas, open parens, arithmetic operators,
@@ -34,12 +37,16 @@ baz;
 //
 
 
-foo(
 
-);
+
+
+foo(x, y);
+
 baz;
 
-foo(bar, baz);
+foo(bar,
+    baz, baj)
+baz
 
 foo(bar, /*baz ,baj*/, bax);
 
