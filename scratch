@@ -10,8 +10,17 @@ bif;
 bar;
 baz;
 
-foo("bar + bar" +
+foo(bar, baz);
+
+foo(barbar(baz));
+
+foo(bar) foo(baz, baj);
+
+fooxet (  "bar + bar"   +
     baz + "baj + baj");
+
+DatastoreService service = DatastoreService::NewStub(
+                                                     RPC_StubParameters::ThreadSafeStub(address))){
 
 // (defun fillcode-find-fill-point ()
 //   "Move point to the closest fill point on the current line. Fill points are

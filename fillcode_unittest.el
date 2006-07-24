@@ -227,7 +227,7 @@ foo(bar,
 
   (fillcode-test "foo(bar,baz);" "
 foo(bar,
-    baz);" 6)
+    baz);" 8)
 
   ; a
   (fillcode-test "foo(bar, baz, baj);" "
@@ -279,10 +279,11 @@ foo(bar baz baj,
   (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
 
-  ; in cc-mode and friends, filling at baz brings it to the same fill column as
-  ; the second parenthesis, which doesn't help any. so it's not filled.
-  (fillcode-test-in-mode "foo(barbar(baz));" "foo(barbar(
-    baz));" 'python-mode 12)
+  ; in cc-mode and friends, filling at baz brings it to the same fill column
+  ; as the second parenthesis, which doesn't help any. instead, fill it to
+  ; c-basic-offset past the last line's indentation.
+  (fillcode-test "foofoo(barbar(baz));" "foofoo(barbar(
+    baz));" 14)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -352,7 +353,7 @@ foo(bar +
     bap);" 11)
   (fillcode-test "foo(bar+baz);" "
 foo(bar +
-    baz);" 6)
+    baz);" 10)
 
   ; the minus sign is tricky. when it's used to indicate a negative scalar, it
   ; *shouldn't* be normalized.
@@ -387,94 +388,94 @@ foo(bar) foo(baz,
 
 (deftest non-fill-points
   ;; make sure that tokens aren't normalized or filled at other special tokens
-  (fillcode-test "foo(bar.baz);" nil 9)
-  (fillcode-test "foo(bar_baz);" nil 9)
-  (fillcode-test "foo(bar%baz);" nil 9)
-  (fillcode-test "foo(bar$baz);" nil 9)
-  (fillcode-test "foo(bar`baz);" nil 9)
-  (fillcode-test "foo(bar@baz);" nil 9)
-  (fillcode-test "foo(bar!baz);" nil 9)
-  (fillcode-test "foo(bar:baz);" nil 9)
-  (fillcode-test "foo(bar?baz);" nil 9)
-  (fillcode-test "foo(bar->baz);" nil 9)
-  (fillcode-test "foo(bar *baz);" nil 9)  ;; pointers in c++
-  (fillcode-test "foo(bar* baz);" nil 9)
-  (fillcode-test "foo(bar*baz);" nil 9)
-  (fillcode-test-in-mode "foo(bar#baz);" nil 'java-mode 9))
+  (fillcode-test "foo(bar.baz);"  "foo(bar.baz);"  nil 9)
+  (fillcode-test "foo(bar_baz);"  "foo(bar_baz);"  nil 9)
+  (fillcode-test "foo(bar%baz);"  "foo(bar%baz);"  nil 9)
+  (fillcode-test "foo(bar$baz);"  "foo(bar$baz);"  nil 9)
+  (fillcode-test "foo(bar`baz);"  "foo(bar`baz);"  nil 9)
+  (fillcode-test "foo(bar@baz);"  "foo(bar@baz);"  nil 9)
+  (fillcode-test "foo(bar!baz);"  "foo(bar!baz);"  nil 9)
+  (fillcode-test "foo(bar:baz);"  "foo(bar:baz);"  nil 9)
+  (fillcode-test "foo(bar?baz);"  "foo(bar?baz);"  nil 9)
+  (fillcode-test "foo(bar->baz);" "foo(bar->baz);" nil 9)
+  (fillcode-test "foo(bar *baz);" "foo(bar *baz);" nil 9)  ;; pointers
+  (fillcode-test "foo(bar* baz);" "foo(bar* baz);" nil 9)
+  (fillcode-test "foo(bar*baz);"  "foo(bar*baz);"  nil 9))
+;;   (fillcode-test-in-mode "foo(bar#baz);" "foo(bar\n   #baz);" nil 'c++-mode 9))
 
-(deftest literals
-  ;; string literals and comments should be kept intact and treated as single,
-  ;; unbreakable tokens, not normalized or filled inside
-  (fillcode-test "foo(\"bar,baz\");")
-  (fillcode-test-in-mode "foo(\"bar,baz\");" nil 'java-mode 20)
+;; (deftest literals
+;;   ;; string literals and comments should be kept intact and treated as single,
+;;   ;; unbreakable tokens, not normalized or filled inside
+;;   (fillcode-test "foo(\"bar,baz\");")
+;;   (fillcode-test-in-mode "foo(\"bar,baz\");" nil 'java-mode 20)
 
-  (fillcode-test "foo(\"bar,baz\");" nil 9)
-  (fillcode-test-in-mode "foo('bar,baz');" nil 'java-mode 9)
+;;   (fillcode-test "foo(\"bar,baz\");" nil 9)
+;;   (fillcode-test-in-mode "foo('bar,baz');" nil 'java-mode 9)
 
-  (fillcode-test "foo(\"bar\" + baz + \"baj\");" "
-foo(\"bar\" +
-    baz +
-    \"baj\");" 12)
-
-  ;; TODO: temporarily disabled. it gets to here:
-  ;;   foo("bar + bar" +
-  ;;       baz + "baj + baj");
-  ;; with the cursor on the semicolon, looks backward for a fill point, finds
-  ;; the plus sign in the string, says nope, it's in a string, and doesn't know
-  ;; how to look backward *past* the string to the other plus sign. grr!!!
-;;   (fillcode-test "foo(\"bar + bar\" + baz + \"baj + baj\");" "
-;; foo(\"bar + bar\" +
+;;   (fillcode-test "foo(\"bar\" + baz + \"baj\");" "
+;; foo(\"bar\" +
 ;;     baz +
-;;     \"baj + baj\");" 16)
+;;     \"baj\");" 12)
 
-  ; don't fill whole-line comments (# and //)
-  (fillcode-test-in-mode "foo(bar); // baz, baj" nil 'java-mode 16)
+;;   ;; TODO: temporarily disabled. it gets to here:
+;;   ;;   foo("bar + bar" +
+;;   ;;       baz + "baj + baj");
+;;   ;; with the cursor on the semicolon, looks backward for a fill point, finds
+;;   ;; the plus sign in the string, says nope, it's in a string, and doesn't know
+;;   ;; how to look backward *past* the string to the other plus sign. grr!!!
+;; ;;   (fillcode-test "foo(\"bar + bar\" + baz + \"baj + baj\");" "
+;; ;; foo(\"bar + bar\" +
+;; ;;     baz +
+;; ;;     \"baj + baj\");" 16)
 
-  ; emacs 21's python.el doesn't set `fill-paragraph-function', so it doesn't
-  ; fill this line...but emacs 22's python.el does. i haven't yet figured out
-  ; how to make this test portable. :/)
-  (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
+;;   ; don't fill whole-line comments (# and //)
+;;   (fillcode-test-in-mode "foo(bar); // baz, baj" nil 'java-mode 16)
 
-  (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(bar,
-    /*baz ,baj*/,
-    bax);" 'java-mode 6)
+;;   ; emacs 21's python.el doesn't set `fill-paragraph-function', so it doesn't
+;;   ; fill this line...but emacs 22's python.el does. i haven't yet figured out
+;;   ; how to make this test portable. :/)
+;;   (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
 
-  (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(bar,
-    //baz ,baj,
-    bax);" 'c++-mode 6)
+;;   (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(bar,
+;;     /*baz ,baj*/,
+;;     bax);" 'java-mode 6)
 
-  (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "
-foo(bar, //baz ,baj,
-    bax);" 'c++-mode 20)
+;;   (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(bar,
+;;     //baz ,baj,
+;;     bax);" 'c++-mode 6)
 
-  ; py-in-literal in python-mode.el 4.6.18.2 (the old one maintained w/python)
-  ; is buggy. when it's used in the test below. it returns nil when it's inside
-  ; the comment. :/
-;;   (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(bar,
-;;     #baz ,baj,
-;;     bax);" 'python-mode 6)
+;;   (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "
+;; foo(bar, //baz ,baj,
+;;     bax);" 'c++-mode 20)
 
-  (fillcode-test-in-mode "foo(// bar, baz
-   bajbaj, bax);" "
-foo(// bar, baz
-    bajbaj,
-    bax);" 'java-mode 12)
+;;   ; py-in-literal in python-mode.el 4.6.18.2 (the old one maintained w/python)
+;;   ; is buggy. when it's used in the test below. it returns nil when it's inside
+;;   ; the comment. :/
+;; ;;   (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(bar,
+;; ;;     #baz ,baj,
+;; ;;     bax);" 'python-mode 6)
+
+;;   (fillcode-test-in-mode "foo(// bar, baz
+;;    bajbaj, bax);" "
+;; foo(// bar, baz
+;;     bajbaj,
+;;     bax);" 'java-mode 12)
 
 
-  ; literals should still be normalized *around*
-  ; TODO: re-enable me!
-;;   (fillcode-test "foo(\"bar\",\"baz\");" "foo(\"bar\", \"baz\");")
+;;   ; literals should still be normalized *around*
+;;   ; TODO: re-enable me!
+;; ;;   (fillcode-test "foo(\"bar\",\"baz\");" "foo(\"bar\", \"baz\");")
 
-  ; and after
-  (fillcode-test-in-mode "foo(//bar\nbaz ,\nbaj);" "
-foo(//bar
-    baz, baj);" 'java-mode)
+;;   ; and after
+;;   (fillcode-test-in-mode "foo(//bar\nbaz ,\nbaj);" "
+;; foo(//bar
+;;     baz, baj);" 'java-mode)
 
-  ; if the first choice fill point is in a literal, fall back to second choice
-  (fillcode-test-in-mode "foo(\"baz,\" + bar);" "
-foo(\"baz,\" +
-    bar);" 'java-mode 13)
-)
+;;   ; if the first choice fill point is in a literal, fall back to second choice
+;;   (fillcode-test-in-mode "foo(\"baz,\" + bar);" "
+;; foo(\"baz,\" +
+;;     bar);" 'java-mode 13)
+;; )
 
 ; if there's a prefix argument, fill at all top-level fill points. fill at
 ; other fill points only as needed.
@@ -562,22 +563,22 @@ foo(barbarbar,
     (" +" " -" " /" " *")
     (" &" " |" " ~" " ^" " <<" " >>")))
 
-(defun precedence-test-in-mode (fill-points modes)
-  "Test that fillcode prefers to fill at fill points in (car fill-points) over
-fill points in any of the lists in (cdr fill-points)."
-  (when fill-points  ; base case
-    (dolist (mode modes)
-      (dolist (first (car fill-points))
-        (dolist (second (apply 'append (cdr fill-points)))
-          (fillcode-test-in-mode (concat "foo(bar" first "baz" second " baj);")
-                                 (concat "
-foo(bar" first "
-    baz" second " baj);")
-                                 mode 16))))
-    (precedence-test (cdr fill-points))))  ; recursive step
+;; (defun precedence-test-in-mode (fill-points modes)
+;;   "Test that fillcode prefers to fill at fill points in (car fill-points) over
+;; fill points in any of the lists in (cdr fill-points)."
+;;   (when fill-points  ; base case
+;;     (dolist (mode modes)
+;;       (dolist (first (car fill-points))
+;;         (dolist (second (apply 'append (cdr fill-points)))
+;;           (fillcode-test-in-mode (concat "foo(bar" first "baz" second " baj);")
+;;                                  (concat "
+;; foo(bar" first "
+;;     baz" second " baj);")
+;;                                  mode 16))))
+;;     (precedence-test-in-mode (cdr fill-points) modes)))  ; recursive step
 
-(deftest fill-point-hierarchy
-  ; test which fill points take precedence
-  (precedence-test-in-mode ordered-fill-points '(python-mode))
-  (precedence-test-in-mode (cons '(";") ordered-fill-points)
-                           '(java-mode c++-mode)))
+;; (deftest fill-point-hierarchy
+;;   ; test which fill points take precedence
+;;   (precedence-test-in-mode ordered-fill-points '(python-mode))
+;;   (precedence-test-in-mode (cons '(";") ordered-fill-points)
+;;                            '(java-mode c++-mode)))

@@ -120,7 +120,7 @@ it needs a chance to run (without narrowing!), which this advice provides."
 (defcustom fillcode-fill-points
   (list
    ";[^;]"
-   ",[^,]\\|[({[][^({[]"
+   ",[^,]"
    "&&[^&]\\|||[^|]"                    ; boolean operators
    "<[^<=]\\|[^-]>[^>=]\\|[<>!=]=[^=]"  ; comparators. > is a fill pt, -> isn't
    (concat "/[^=]\\|+[^+=]\\|"          ; arithmetic operators
@@ -133,7 +133,9 @@ it needs a chance to run (without narrowing!), which this advice provides."
            ; negative sign. approximate this by checking if they're followed
            ; by whitespace. (it's a very bad approximation.)
            "-\\s-")
-   "[&|~^][^&|=]\\|<<[^<]\\|>>[^>]")    ; bitwise operators
+   ;; TODO: iostreams insertion operators <<, >>
+   "[&|~^][^&|=]\\|<<[^<]\\|>>[^>]"    ; bitwise operators
+   "[({[][^({[]")
 
   "A list of regular expressions used to find fill points.
 A fill point is a point in an expression where a newline can reasonably be
@@ -153,6 +155,9 @@ unfortunately absent."
   :group 'fillcode)
 
 (defun fillcode-fill-point-re ()
+  "Build a fill point regexp from the user-customizable variable
+`fillcode-fill-points`. A function, not a variable, so that it won't skew if
+the user changes `fillcode-fill-points`."
   (mapconcat 'identity fillcode-fill-points "\\|"))
 
 (defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
@@ -186,12 +191,17 @@ Intended to be set as `fill-paragraph-function'."
             (member (fillcode-in-literal) '(c c++ comment)))
         ret
       ; otherwise, normalize whitespace and fill
-      (save-excursion 
+      (save-excursion (save-restriction
+        (narrow-to-region (fillcode-beginning-of-statement)
+                          (fillcode-end-of-statement))
         (fillcode-normalize-whitespace)
-        (goto-char (fillcode-beginning-of-statement))
-        (with-syntax-table c-mode-syntax-table
-          (fillcode arg))
-        t))))
+        (goto-char (point-min))
+        (condition-case nil  ; fill until we hit the end of the statement
+            (while (< (point) (point-max))
+              (with-syntax-table c-mode-syntax-table
+                (fillcode arg)))
+            (end-of-buffer t))
+          t)))))
 
 
 
@@ -219,12 +229,17 @@ whitespace), nil otherwise."
           (setq filled t))
 
         ; end of a sexp. return!
-        (if (and (char-after)
+        (when (and (char-after)
                  (eq (char-syntax (char-after)) ?\)))
             (throw 'sexp-end t))
 
-        ; if a sexp extends beyond fill-column, fill before it starts
-        (when (and (char-after) (eq (char-syntax (char-after)) ?\())
+        ; if a sexp extends beyond fill-column, and there's an earlier
+        ; *non-open-paren* fill point we can use, fill at that fill point
+        (when (and (char-after)
+                   (eq (char-syntax (char-after)) ?\()
+                   (save-excursion
+                     (fillcode-find-fill-point-backward)
+                     (not (eq (char-syntax (char-before)) ?\())))
           (if (< fill-column (fillcode-fill-point-column-after-sexp))
               (fillcode-fill-at-fill-point 'backward))
           (forward-char)
@@ -245,27 +260,24 @@ If filling brings the new line to the same point as it was on the previous
 line, doesn't fill and leaves point where it was before."
   (catch 'filled
     (let ((orig-pt (point))
-          (bound nil)
           (find-fn (if (eq direction 'forward)
                        'fillcode-find-fill-point-forward
                      'fillcode-find-fill-point-backward)))
 
-    (while (funcall find-fn bound)
-        ; found a fill point
-        ; XXX TODO: this is infinite looping 
-        (let ((orig-col (current-column))
-              (fill-pt (point)))
+    (if (funcall find-fn)
+      ; found a fill point
+      (progn
+        (let ((orig-col (current-column)))
           (insert "\n")
           (indent-according-to-mode)
-          (if (< (current-column) orig-col)
-              (throw 'filled t)
-            (progn                  ; no good, filled to the same col as before
-              (setq bound fill-pt)  ; look for closer fill points
-              (delete-region fill-pt (point))
-              (goto-char orig-pt)))))
+          (when (>= (current-column) orig-col)
+            ; no good, we're at the same column as before we filled. ok
+            ; then, just indent a little past the last line instead.
+            (indent-line-to (+ (fillcode-get-last-line-indent-offset)
+                               (fillcode-get-mode-indent-offset))))))
 
       ; no usable fill point found
-      (goto-char orig-pt))))
+      (goto-char orig-pt)))))
 
 (defun fillcode-forward ()
   "Move forward to the next 'interesting' character. (Word-constituent
@@ -351,10 +363,6 @@ close parens, one space after commas, one space before and after arithmetic
 operators. Except string literals and comments, they're left untouched.
 
 Uses `fillcode-collapse-whitespace-forward'."
-  (save-excursion (save-restriction
-    (narrow-to-region (fillcode-beginning-of-statement)
-                      (fillcode-end-of-statement))
-
     ; don't fill across blank lines, whether they're before point...
     (save-excursion
       (forward-line)
@@ -373,7 +381,7 @@ Uses `fillcode-collapse-whitespace-forward'."
     (if (re-search-forward "\\S-" (point-at-eol) t)
         (backward-char))
     (while (not (eobp))
-      (fillcode-collapse-whitespace-forward)))))
+      (fillcode-collapse-whitespace-forward)))
 
 (defun fillcode-collapse-whitespace-forward ()
   "Delete newlines, normalize whitespace, and/or move forward one character.
@@ -520,6 +528,22 @@ return non-nil if we're past the first char of the start token, so
                     (forward-char)
                     (member (funcall in-literal-fn) '(c c++)))))
           (error nil)))))
+
+(defun fillcode-get-mode-indent-offset ()
+  "Returns the indent offset, ie the number of columns to indent, in the
+current mode."
+  (case major-mode
+    ((python-mode) py-indent-offset)
+    (otherwise c-basic-offset)))
+
+(defun fillcode-get-last-line-indent-offset ()
+  "Returns the indent offset, ie the column of the first non-whitespace
+character, of the current line."
+  (save-excursion
+    (forward-line -1)
+    (beginning-of-line)
+    (skip-chars-forward " \t")  ; skip whitespace
+    (current-column)))
 
 (provide 'fillcode)
 
