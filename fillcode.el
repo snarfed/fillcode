@@ -151,7 +151,7 @@ You may modify this to allow fillcode to handle new languages.
 
 Note that the single = (assignment) operator and < and > operators are
 unfortunately absent."
-  :type 'string
+  :type '(repeat string)
   :group 'fillcode)
 
 (defun fillcode-fill-point-re ()
@@ -159,6 +159,16 @@ unfortunately absent."
 `fillcode-fill-points`. A function, not a variable, so that it won't skew if
 the user changes `fillcode-fill-points`."
   (mapconcat 'identity fillcode-fill-points "\\|"))
+
+(defcustom fillcode-expression-keywords
+  (list "if" "for" "while" "switch")
+  "A list of keywords that aren't functions. If these keywords appear before
+an open parenthesis, a space will be inserted before the open parenthesis. All
+other words, if they occur before open parentheses, are assumed to be function
+names, so whitespace between them and the open parenthesis will be removed."
+  :type '(repeat string)
+  :group 'fillcode)
+
 
 (defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
   "Fill code at point if `fillcode-wrapped-fill-function' is nil.
@@ -408,7 +418,7 @@ point to next non-whitespace char."
    ((looking-at "\\s-")
     (delete-horizontal-space)
     (when (and (not (looking-at (fillcode-fill-point-re)))
-               (not (looking-at "[([{]")))
+               (not (looking-at "(")))
       (fixup-whitespace)
       (if (looking-at "\\s-")  ; (*not* including newlines)
           (forward-char))))
@@ -418,6 +428,20 @@ point to next non-whitespace char."
          (not (looking-at "[,;([{]")))
     (insert " ") 
     (goto-char (match-end 0)))
+
+   ; if we're on the open paren of an if, for, while, or switch condition,
+   ; insert a space.
+   ((and (looking-at "(")
+         (member t (mapcar (lambda (keyword)
+                        (save-excursion
+                         (condition-case nil
+                             (progn
+                               (backward-char (1+ (length keyword)))
+                               (looking-at (concat "\\Sw" keyword)))
+                           (error nil))))
+                     fillcode-expression-keywords)))
+    (fixup-whitespace)
+    (forward-char))
 
    ; if we're after a fill point, insert a space. (note that the fill point
    ; regexp ends at the first char *after* the operator.)

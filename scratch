@@ -12,7 +12,7 @@ baz;
 
 foo(bar, baz);
 
-foo(barbar(baz));
+foo if(barbar(baz));
 
 foo(bar) foo(baz, baj);
 

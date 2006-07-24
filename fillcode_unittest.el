@@ -200,6 +200,18 @@
   (fillcode-test "foo(bar /baz);" "foo(bar / baz);")
   (fillcode-test "foo(bar  *  baz);" "foo(bar * baz);"))
 
+(deftest keyword-whitespace
+  (dolist (keyword '("if" "for" "while" "switch"))
+    (let ((golden (concat " " keyword " (bar) {")))
+     (fillcode-test golden)
+     (fillcode-test (concat " " keyword "(bar) {") golden)
+     (fillcode-test (concat " " keyword "  (bar) {") golden)
+     (fillcode-test (concat " asdf" keyword "(bar) {"))))
+
+  (fillcode-test "foo(bar) {")
+  (fillcode-test "foo (bar) {" "foo(bar) {")
+  (fillcode-test "foo   (bar) {" "foo(bar) {"))
+
 (deftest blank-lines
   ; shouldn't fill across blank lines
   (fillcode-test "foo(\n\n);")
