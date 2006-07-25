@@ -10,11 +10,22 @@ bif;
 bar;
 baz;
 
+qwert(multi<x y, z j> foo);
+
+foo; baz;// baj
+
+foo(
+    "baz," + bar);
+
+template<asdf, A<asdf b, asdf>, typename A, typename A, typename A, typename A> qwert< A > ;
+
 foo(bar, baz);
 
 foo if(barbar(baz));
 
 foo(bar) foo(baz, baj);
+
+foo("bar,baz");
 
 fooxet (  "bar + bar"   +
     baz + "baj + baj");

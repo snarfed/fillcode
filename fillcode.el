@@ -26,21 +26,6 @@
 ;;
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
-;; TODO:
-;; - fillcode still fills previous statement in cc-mode multi-line comments
-;; - python (and other) comments are filled *out of the comment* if they pass
-;;   the fill column. e.g.:
-;;   foo(bar,  # i like bar
-;;       baz)
-;; - fill expressions outside parentheses
-;; - somehow include the assignment = operator and <, > in
-;;   fillcode-fill-point-re. (how to handle <, > with e.g. templates?!?)
-;; - add beginning-of-statement fns for more languages
-;; - make it compatible with filladapt-mode
-;; - handle c++ and python comments better. (the line after them doesn't get
-;;   indented.)
-;; - the first prototype in a c++ class definition after an access specifier,
-;;   e.g. public:, doesn't get filled
 
 (defconst fillcode-version "0.5")
 
@@ -112,6 +97,16 @@ it needs a chance to run (without narrowing!), which this advice provides."
    (fillcode-fill-paragraph arg))) ; arg is c-fill-paragraph's arg
 
 
+(defconst fillcode-syntax-table
+  (let ((fillcode-table (copy-syntax-table c-mode-syntax-table)))
+    (modify-syntax-entry ?< "(>" fillcode-table)
+    (modify-syntax-entry ?> ")<" fillcode-table)
+    fillcode-table)
+  "The syntax table used to run fillcode. Right now, it's just the cc-mode
+syntax table with < and > added to the open and close parenthesis classes,
+respectively.")
+
+
 
 (defgroup fillcode nil
   "Fill code"
@@ -122,7 +117,13 @@ it needs a chance to run (without narrowing!), which this advice provides."
    ";[^;]"
    ",[^,]"
    "&&[^&]\\|||[^|]"                    ; boolean operators
-   "<[^<=]\\|[^-]>[^>=]\\|[<>!=]=[^=]"  ; comparators. > is a fill pt, -> isn't
+   (concat "[<>!=]=[^=]\\|"             ; binary operators
+           ; less than (<) and greater than (>) are special, since they're
+           ; used in so much other syntax - templates, ->, <<, >>, <=, >=. so
+           ; we specifically check for extra -, <, >, and = characters, and
+           ; for whitespace, so that we only fire on the actual operators.
+           "\\s-<\\s-\\|"
+           "\\s->\\s-")
    (concat "/[^=]\\|+[^+=]\\|"          ; arithmetic operators
            ; asterisks are used as pointers in c and c++, so to be
            ; conservative, they're only fill points if they're surrounded by
@@ -133,8 +134,7 @@ it needs a chance to run (without narrowing!), which this advice provides."
            ; negative sign. approximate this by checking if they're followed
            ; by whitespace. (it's a very bad approximation.)
            "-\\s-")
-   ;; TODO: iostreams insertion operators <<, >>
-   "[&|~^][^&|=]\\|<<[^<]\\|>>[^>]"    ; bitwise operators
+   "[&|~^][^&|=]\\|<<[^<]\\|>>[^>]"    ; bitwise and iostream operators
    "[({[][^({[]")
 
   "A list of regular expressions used to find fill points.
@@ -208,14 +208,13 @@ Intended to be set as `fill-paragraph-function'."
         (goto-char (point-min))
         (condition-case nil  ; fill until we hit the end of the statement
             (while (< (point) (point-max))
-              (with-syntax-table c-mode-syntax-table
-                (fillcode arg)))
+              (fillcode nil))
             (end-of-buffer t))
           t)))))
 
 
 
-(defun fillcode (&optional arg)
+(defun fillcode (&optional open-paren-char)
   "Fill code at point.
 The actual function-call-filling algorithm. Fills function calls and prototypes
 if it thinks the point is on a statement that has one.
@@ -238,18 +237,22 @@ whitespace), nil otherwise."
           (fillcode-fill-at-fill-point 'backward)
           (setq filled t))
 
-        ; end of a sexp. return!
+        ; close-paren char, so it's the end of a sexp. return!
         (when (and (char-after)
-                 (eq (char-syntax (char-after)) ?\)))
+                   (eq (fillcode-syntax (char-after)) ?\))
+                   ; there must not be whitespace before the close paren char.
+                   ; otherwise, it might be an operator like >=, which is most
+                   ; definitely *not* the end of a sexp.
+                   (not (eq (fillcode-syntax (char-before)) ?\ )))
             (throw 'sexp-end t))
 
         ; if a sexp extends beyond fill-column, and there's an earlier
         ; *non-open-paren* fill point we can use, fill at that fill point
         (when (and (char-after)
-                   (eq (char-syntax (char-after)) ?\()
+                   (eq (fillcode-syntax (char-after)) ?\()
                    (save-excursion
                      (fillcode-find-fill-point-backward)
-                     (not (eq (char-syntax (char-before)) ?\())))
+                     (not (eq (fillcode-syntax (char-before)) ?\())))
           (if (< fill-column (fillcode-fill-point-column-after-sexp))
               (fillcode-fill-at-fill-point 'backward))
           (forward-char)
@@ -307,7 +310,9 @@ Return t if it moved point at all, nil otherwise."
   "Call forward-sexp and catch any errors.
 Return t if it moved point at all, nil otherwise."
   (unless (eolp)
-    (condition-case nil (forward-sexp)
+    (condition-case nil
+        (with-syntax-table fillcode-syntax-table
+          (forward-sexp))
       (scan-error
        (forward-char)
        t))))
@@ -399,10 +404,15 @@ Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators.
 Except string literals and comments, they're left untouched. Then advance
 point to next non-whitespace char."
-;;     (edebug)
+;;   (edebug)
   (cond
-   ; if we're in a string literal or comment, skip to the end of it 
+
+   ; if we're in a string literal or comment, add a space before it, thenskip
+   ; to the end of it
    ((fillcode-in-literal)
+    (when (save-excursion (backward-char) (not (fillcode-in-literal)))
+      (fixup-whitespace)
+      (forward-char))
     ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
     (forward-char)
     (if (equal "\n" (char-to-string (char-before)))
@@ -512,13 +522,12 @@ Returns t if it found a fill point, nil otherwise."
   (when
    (catch 'found
      (dolist (re fillcode-fill-points)
-       (when (and (funcall re-search-fn re bound t)
-                  (save-match-data
-                    ; can't fill if we're in or immediately after a literal
-                    (not (fillcode-in-literal))
-                    (not (save-excursion (backward-char)
-                                         (fillcode-in-literal)))))
-         (throw 'found t))))
+       (save-excursion
+         (while (funcall re-search-fn re bound t)
+           (save-match-data
+             ; can't fill if we're in a literal
+             (when (not (fillcode-in-literal))
+               (throw 'found t)))))))
 
     ; found a fill point
     (goto-char (1- (match-end 0)))))
@@ -568,6 +577,11 @@ character, of the current line."
     (beginning-of-line)
     (skip-chars-forward " \t")  ; skip whitespace
     (current-column)))
+
+(defun fillcode-syntax (char)
+  "Returns the argument's syntax class in fillcode's syntax table."
+  (with-syntax-table fillcode-syntax-table
+    (char-syntax char)))
 
 (provide 'fillcode)
 

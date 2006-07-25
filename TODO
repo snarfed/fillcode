@@ -1,0 +1,38 @@
+- only indent to indent-offset if that's *earlier* than the original column
+
+- python (and other) comments are filled *out of the comment* if they pass
+  the fill column. e.g.:
+  foo(bar,  # i like bar
+      baz)
+
+- fill expressions outside parentheses
+
+- somehow include the assignment = operator and <, > in
+  fillcode-fill-point-re. (how to handle <, > with e.g. templates?!?)
+
+- add beginning-of-statement fns for more languages
+
+- make it compatible with filladapt-mode
+
+- handle c++ and python comments better. (the line after them doesn't get
+  indented.)
+
+- the first prototype in a c++ class definition after an access specifier,
+  e.g. public:, doesn't get filled
+
+- this should allow filling inside inner sexp
+
+    scanner->SetLimitRow(RowName(query->appname(), query->entity_type() + "0", ""));
+
+- this doesn't fill'
+
+  } else if (query->filter_size() > 0 and
+             (query->filter(0).op() == Query::Filter::IN || query->filter(0).op() == Query::Filter::BETWEEN)) {
+
+- fillcode todo: fill at open parens
+
+e.g. this
+DatastoreService service = DatastoreService::NewStub(RPC_StubParameters::ThreadSafeStub(address))) {
+
+- iostreams << operators
+
