@@ -72,32 +72,37 @@
 ;; beginning, end, and middle of the first statement
 (defun fillcode-test-in-mode (input expected mode
                               &optional fill-col prefix-arg)
+  (dolist (point-fn (list
+                     'beginning-of-buffer
+                     'first-semicolon-or-open-brace
+                     (lambda () (first-semicolon-or-open-brace)
+                       (goto-char (max (point-min) (- (point) 4))))))
+    (fillcode-test-in-mode-at input expected mode fill-col (point-fn)
+                              prefix-arg)))
+
+(defun fillcode-test-in-mode-at (input expected mode
+                                 &optional fill-col at prefix-arg)
   ; add a statement *after* the current one so the mode's beginning- and
   ; end-of statement functions work
   (let* ((input (concat input "\nbar;"))
          (expected (if (not expected) input
                      ; trim leading newlines
                      (concat (string-replace expected "\\`\n+" "") "\nbar;"))))
-    (dolist (point-fn (list
-                       'beginning-of-buffer
-                       'first-semicolon-or-open-brace
-                       (lambda () (first-semicolon-or-open-brace)
-                         (goto-char (max (point-min) (- (point) 4))))))
-      (with-temp-buffer
-        (toggle-mode-clean 'fundamental-mode)
-        (toggle-mode-clean mode)
-        (insert-string input) ; *after* setting mode
-        (funcall point-fn)    ; *after* inserting input :P
-        ; remove semicolons and braces for python. (have to do it here
-        ; because point-fn depends on the semicolons.)
-        (if (eq mode 'python-mode)
-            (progn
-              (buffer-replace ";\\|{\\|}" "")
-              (setq expected (normalize-python-indentation
-                              (string-replace expected ";\\|{\\|}" "")))))
-        (setq fill-column (if fill-col fill-col 80))
-        (fillcode-fill-paragraph prefix-arg)
-        (assert-equal expected (buffer-string))))))
+    (with-temp-buffer
+      (toggle-mode-clean 'fundamental-mode)
+      (toggle-mode-clean mode)
+      (insert-string input) ; *after* setting mode
+      (funcall point-fn)    ; *after* inserting input :P
+      ; remove semicolons and braces for python. (have to do it here
+      ; because point-fn depends on the semicolons.)
+      (if (eq mode 'python-mode)
+          (progn
+            (buffer-replace ";\\|{\\|}" "")
+            (setq expected (normalize-python-indentation
+                            (string-replace expected ";\\|{\\|}" "")))))
+      (setq fill-column (if fill-col fill-col 80))
+      (fillcode-fill-paragraph prefix-arg)
+      (assert-equal expected (buffer-string)))))
 
 ; replace all occurrences of regexp in string. returns the result string.
 (defun string-replace (string regexp replacement)
@@ -164,7 +169,6 @@
 
 ; test cases
 (deftest no-function-to-fill
-;;   (fillcode-test "")
   (fillcode-test ";")
   (fillcode-test ");")
   (fillcode-test "foo;")
@@ -213,14 +217,26 @@
 (deftest keyword-whitespace
   (dolist (keyword '("if" "for" "while" "switch"))
     (let ((golden (concat " " keyword " (bar) {")))
-     (fillcode-test golden)
-     (fillcode-test (concat " " keyword "(bar) {") golden)
-     (fillcode-test (concat " " keyword "  (bar) {") golden)
-     (fillcode-test (concat " asdf" keyword "(bar) {"))))
+      (fillcode-test golden)
+      (fillcode-test (concat " " keyword "(bar) {") golden)
+      (fillcode-test (concat " " keyword "  (bar) {") golden)
+      (fillcode-test (concat " asdf" keyword "(bar) {"))))
 
   (fillcode-test "foo(bar) {")
   (fillcode-test "foo (bar) {" "foo(bar) {")
   (fillcode-test "foo   (bar) {" "foo(bar) {"))
+
+(deftest classes
+  (fillcode-test "class foo {};")
+  (fillcode-test "class foo {\n};")
+  (fillcode-test "class foo {\nbar();\n};")
+  (fillcode-test "class foo {\n  bar();\n};")
+
+;;   (fillcode-test "class foo {\n  bar(  );\n};" "class foo {\n  bar();\n};")
+;;   (fillcode-test "class foo {\n public:\n  qwert(bar);")
+;;   (fillcode-test "class foo {\n public:\n  qwert(bar);")
+;;   (fillcode-test "class foo {\n public:\n  qwert(bar);")
+)
 
 (deftest blank-lines
   ; shouldn't fill across blank lines
@@ -562,7 +578,7 @@ foo(\"baz,\" +
 (deftest subexpression-affinity
   ; don't fill inside a subexpression if it would fit on one line
   (dolist (i '(15 16 17 18))
-    (fillcode-test-in-mode "foo(bar, baz{a, b});" "foo(bar,\n    baz{a, b});"
+    (fillcode-test-in-mode "foo(bar, x {a, b});" "foo(bar,\n    x {a, b});"
                            'c++-mode i)
     (dolist (sexp '("(a, b)" "[a, b]" "<a, b>"))
       (fillcode-test (concat "foo(bar, baz" sexp ");")

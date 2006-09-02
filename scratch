@@ -6,9 +6,22 @@
 // # tar czhf fillcode.tar.gz fillcode/fillcode*.el fillcode/elunit
 // # rm -f fillcode
 
+class foo {
+public:
+    qwert( asdf,
+           boo(bar), baz
+           ba(baj));
+};
+
 bif;
 bar;
 baz;
+
+    baz {a, b});
+
+class foo {
+    bar(   );
+};
 
 qwert(multi<x y, z j> foo);
 
@@ -50,7 +63,7 @@ DatastoreService service = DatastoreService::NewStub(
 // ;;                  (throw 'find-fill-point-backward-moved-past-fill-column nil))
 //              t))
 //       ; no fill point before fill-column! take the closest one after.
-//       (fillcode-find-fill-point-forward))
+\//       (fillcode-find-fill-point-forward))
 //
 // ;;   (goto-char (1- (match-beginning 0)))
 //   )
