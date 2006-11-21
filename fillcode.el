@@ -433,9 +433,9 @@ point to next non-whitespace char."
       (if (looking-at "\\s-")  ; (*not* including newlines)
           (forward-char))))
 
-   ; if we're before a non-comma/semicolon/open paren fill point, add a space
+   ; if we're before a non-special-punctuation fill point, add a space
    ((and (looking-at (fillcode-fill-point-re))
-         (not (looking-at "[,;([{]")))
+         (not (looking-at "[,;([{&|]")))
     (insert " ") 
     (goto-char (match-end 0)))
 
