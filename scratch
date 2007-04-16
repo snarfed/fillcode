@@ -1,10 +1,19 @@
-// # -*- mode: python; fill-column: 12 -*-
-// #
-// # to make the tar.gz package:
-// #
-// # ln -s . fillcode
-// # tar czhf fillcode.tar.gz fillcode/fillcode*.el fillcode/elunit
-// # rm -f fillcode
+# -*- mode: python; fill-column: 12 -*-
+#
+# to make the tar.gz package:
+#
+# ln -s . fillcode
+# tar czhf fillcode.tar.gz fillcode/fillcode*.el fillcode/elunit
+# rm -f fillcode
+
+foo(bar + baz & baj);
+
+foo(bar - baz);
+
+foo(bar) # baz, baj
+bar
+
+foo(bar, #baz ,baj,\nbax);
 
 class foo {
 public:
@@ -17,10 +26,14 @@ bif;
 bar;
 baz;
 
+class foo {};
+bar;
+
+
     baz {a, b});
 
 class foo {
-    bar(   );
+    bar(  );
 };
 
 qwert(multi<x y, z j> foo);

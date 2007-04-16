@@ -4,6 +4,11 @@
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005-2006 Ryan Barrett <fillcode@ryanb.org>
 ;;
+;; Unit tests for fillcode; run them with M-x eval-buffer C-F10 or
+;; ./elunit/runtests.sh.
+;; For more information about fillcode, see fillcode.el.
+;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
+;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 2, or (at your option)
@@ -18,18 +23,20 @@
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Unit tests for fillcode; run them with M-x eval-buffer C-F10 or
-;; ./elunit/runtests.sh.
-;; For more information about fillcode, see fillcode.el.
-;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
-
 
 (if (not (member "." load-path))
     (setq load-path (cons "." load-path)))
 (if (not (member "elunit" load-path))
     (setq load-path (cons "elunit" load-path)))
 
+
 (require 'elunit)
+;; override so that elunit instruments the fillcode-test calls with line #s
+;; (defconst elunit-assertion-funcs '(fillcode-test))
+;; (defconst elunit-assertions-regexp (-elunit-make-assertion-func-regexp))
+(defconst elunit-assertions-regexp
+  "(\\(fillcode-test\\|fillcode-test-in-mode\\)\\([) \t\n]\\)")
+
 (require 'fillcode)
 
 (global-set-key [(control f10)]
@@ -63,25 +70,26 @@
 ; `fill-paragraph-function'.
 ;
 ; returns the value returned from fillcode.
-(defun fillcode-test (input &optional expected fill-col prefix-arg)
+(defun fillcode-test (lineno input &optional expected fill-col prefix-arg)
   (dolist (mode '(java-mode c++-mode python-mode))
-    (fillcode-test-in-mode input expected mode fill-col prefix-arg)))
+    ;; initial space is to escape elunit-assertions-regexp (see above)
+    ( fillcode-test-in-mode lineno input expected mode fill-col prefix-arg)))
 
 
 ;; set up the buffer and mode, then run and check fillcode with point at the
 ;; beginning, end, and middle of the first statement
-(defun fillcode-test-in-mode (input expected mode
+(defun fillcode-test-in-mode (lineno input expected mode
                               &optional fill-col prefix-arg)
   (dolist (point-fn (list
                      'beginning-of-buffer
                      'first-semicolon-or-open-brace
                      (lambda () (first-semicolon-or-open-brace)
                        (goto-char (max (point-min) (- (point) 4))))))
-    (fillcode-test-in-mode-at input expected mode fill-col (point-fn)
+    (fillcode-test-in-mode-at lineno input expected mode fill-col point-fn
                               prefix-arg)))
 
-(defun fillcode-test-in-mode-at (input expected mode
-                                 &optional fill-col at prefix-arg)
+(defun fillcode-test-in-mode-at (lineno input expected mode
+                                 &optional fill-col point-fn prefix-arg)
   ; add a statement *after* the current one so the mode's beginning- and
   ; end-of statement functions work
   (let* ((input (concat input "\nbar;"))
@@ -102,7 +110,7 @@
                             (string-replace expected ";\\|{\\|}" "")))))
       (setq fill-column (if fill-col fill-col 80))
       (fillcode-fill-paragraph prefix-arg)
-      (assert-equal expected (buffer-string)))))
+      (assert-equal lineno expected (buffer-string)))))
 
 ; replace all occurrences of regexp in string. returns the result string.
 (defun string-replace (string regexp replacement)
@@ -209,9 +217,11 @@
 
 (deftest operator-whitespace
   (fillcode-test "foo(bar+baz);" "foo(bar + baz);")
-  (fillcode-test "foo(bar-  baz);" "foo(bar - baz);")
+  (fillcode-test "foo(bar  -  baz);" "foo(bar - baz);")
   (fillcode-test "foo(bar /baz);" "foo(bar / baz);")
   (fillcode-test "foo(bar  *  baz);" "foo(bar * baz);")
+  (fillcode-test "foo(bar  &&  baz);" "foo(bar && baz);")
+  (fillcode-test "foo(bar  ||  baz);" "foo(bar || baz);")
   (fillcode-test-in-mode "foo;baz;" "foo; baz;" 'java-mode))
 
 (deftest keyword-whitespace
@@ -232,10 +242,13 @@
   (fillcode-test "class foo {\nbar();\n};")
   (fillcode-test "class foo {\n  bar();\n};")
 
+  (fillcode-test "class foo {\n public:\n  qwert(bar);")
+  (fillcode-test "class foo {\n public:\n  qwert(bar);")
+  (fillcode-test "class foo {\n public:\n  qwert(bar);")
+
+  ;; this should only be tested with point on the bar(  ); line. the
+  ;; fillcode-test* methods don't support that yet.
 ;;   (fillcode-test "class foo {\n  bar(  );\n};" "class foo {\n  bar();\n};")
-;;   (fillcode-test "class foo {\n public:\n  qwert(bar);")
-;;   (fillcode-test "class foo {\n public:\n  qwert(bar);")
-;;   (fillcode-test "class foo {\n public:\n  qwert(bar);")
 )
 
 (deftest blank-lines
@@ -438,6 +451,9 @@ foo(bar) foo(baz,
   (fillcode-test "foo(bar *baz);" "foo(\n    bar *baz);" 9)  ;; pointers
   (fillcode-test "foo(bar* baz);" "foo(\n    bar* baz);" 9)
   (fillcode-test "foo(bar*baz);"  "foo(\n    bar*baz);"  9)
+  (fillcode-test "foo(bar &baz);" "foo(\n    bar &baz);" 9)  ;; references
+  (fillcode-test "foo(bar& baz);" "foo(\n    bar& baz);" 9)
+  (fillcode-test "foo(bar&baz);"  "foo(\n    bar&baz);"  9)
   (fillcode-test-in-mode "foo(bar#baz);" "foo(\n    bar#baz);"  'c++-mode 9))
 
 (deftest literals
@@ -468,7 +484,7 @@ foo(
   ; NB: emacs 21's python.el doesn't set `fill-paragraph-function', so it
   ; doesn't fill this line...but emacs 22's python.el does. i haven't yet
   ; figured out how to make this test portable. :/)
-  (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
+;;   (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
 
   (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(
     bar,
@@ -487,10 +503,10 @@ foo(bar, //baz ,baj,
   ; NB: py-in-literal in python-mode.el 4.6.18.2 (the old one maintained
   ; w/python) is buggy. when it's used in the test below. it returns nil when
   ; it's inside the comment. :/
-  (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(
-    bar,
-    #baz ,baj,
-    bax);" 'python-mode 6)
+;;   (fillcode-test-in-mode "foo(bar, #baz ,baj,\nbax);" "foo(
+;;     bar,
+;;     #baz ,baj,
+;;     bax);" 'python-mode 6)
 
   (fillcode-test-in-mode "foo(// bar, baz
    bajbaj, bax);" "
@@ -512,10 +528,10 @@ foo(//bar
 foo(\"baz,\" +
     bar);" 'java-mode 13))
 
-; if there's a prefix argument, fill at all top-level fill points. fill at
-; other fill points only as needed.
+;; if there's a prefix argument, fill at all top-level fill points. fill at
+;; other fill points only as needed.
 ;; (deftest prefix-argument ()
-;;   (fillcode-test "foo(bar);" 80 t)
+;;   (fillcode-test "foo(bar);" "foo(bar);" 80 t)
 
 ;;   (fillcode-test "foo(bar,baz);" "
 ;; foo(bar,
@@ -554,8 +570,11 @@ foo(\"baz,\" +
                            (+ begin (/ (- end begin) 2))))
         (progn
           (goto-char point)
-          (assert-equal begin (fillcode-beginning-of-statement))
-          (assert-equal end (fillcode-end-of-statement)))))))
+          (assert-equal 0 ; fake line number
+                        begin (fillcode-beginning-of-statement))
+          (assert-equal 0 ; fake line number
+                        end (fillcode-end-of-statement))
+          )))))
 
 (deftest statement-boundaries
   ;; note that (point-min) is 1
@@ -600,22 +619,22 @@ foo(barbarbar,
     (" +" " -" " /" " *")
     (" &" " |" " ~" " ^" " <<" " >>")))
 
-;; (defun precedence-test-in-mode (fill-points modes)
-;;   "Test that fillcode prefers to fill at fill points in (car fill-points) over
-;; fill points in any of the lists in (cdr fill-points)."
-;;   (when fill-points  ; base case
-;;     (dolist (mode modes)
-;;       (dolist (first (car fill-points))
-;;         (dolist (second (apply 'append (cdr fill-points)))
-;;           (fillcode-test-in-mode (concat "foo(bar" first "baz" second " baj);")
-;;                                  (concat "
-;; foo(bar" first "
-;;     baz" second " baj);")
-;;                                  mode 16))))
-;;     (precedence-test-in-mode (cdr fill-points) modes)))  ; recursive step
+(defun precedence-test-in-mode (fill-points modes)
+  "Test that fillcode prefers to fill at fill points in (car fill-points) over
+fill points in any of the lists in (cdr fill-points)."
+  (when fill-points  ; base case
+    (dolist (mode modes)
+      (dolist (first (car fill-points))
+        (dolist (second (apply 'append (cdr fill-points)))
+          (fillcode-test-in-mode (concat "foo(bar" first " baz" second " baj);")
+                                 (concat "
+foo(bar" first "
+    baz" second " baj);")
+                                 mode 16))))
+    (precedence-test-in-mode (cdr fill-points) modes)))  ; recursive step
 
-;; (deftest fill-point-hierarchy
-;;   ; test which fill points take precedence
-;;   (precedence-test-in-mode ordered-fill-points '(python-mode))
-;;   (precedence-test-in-mode (cons '(";") ordered-fill-points)
-;;                            '(java-mode c++-mode)))
+(deftest fill-point-hierarchy
+  ; test which fill points take precedence
+  (precedence-test-in-mode ordered-fill-points '(python-mode))
+  (precedence-test-in-mode (cons '(";") ordered-fill-points)
+                           '(java-mode c++-mode)))

@@ -49,6 +49,8 @@
 
   (-elunit-load-test-suite files)
   (set-buffer "*Elunit Result*")
+  (compilation-minor-mode)
+
   (if (null elunit-tests)
       (insert "No tests found.")
     (apply '-elunit-insert-result (-elunit-run-test (reverse elunit-tests))))
@@ -103,6 +105,7 @@
   (let ((lineno (-elunit-extract-lineno err))
         (msg (-elunit-extract-message err)))
     (with-current-buffer (get-buffer-create "*Elunit Result*")
+      (insert "\n")
       (insert (format "%s:%s:%s"
                       lineno
                       (error-message-string err)

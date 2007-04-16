@@ -2,7 +2,15 @@
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
-;; Copyright 2005-2006 Ryan Barrett <fillcode@ryanb.org>
+;; Copyright 2005-2007 Ryan Barrett <fillcode@ryanb.org>
+;;
+;; This minor mode enhance the fill functions when in source code major modes,
+;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
+;; fill function that intelligently fills some parts of source code, like
+;; function calls and definitions, if the language mode's fill function
+;; doesn't already.
+;;
+;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -17,15 +25,6 @@
 ;; A copy of the GNU General Public License can be obtained at
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-;;
-;; This minor mode enhance the fill functions when in source code major modes,
-;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
-;; fill function that intelligently fills some parts of source code, like
-;; function calls and definitions, if the language mode's fill function
-;; doesn't already.
-;;
-;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
-;;
 
 (defconst fillcode-version "0.5")
 
@@ -124,18 +123,20 @@ respectively.")
            ; for whitespace, so that we only fire on the actual operators.
            "\\s-<\\s-\\|"
            "\\s->\\s-")
-   (concat "/[^=]\\|+[^+=]\\|"          ; arithmetic operators
-           ; asterisks are used as pointers in c and c++, so to be
+   (concat "/[^=]\\|\\+[^+=]\\|"          ; arithmetic operators
+           ; single asterisks are used for pointers in c and c++, so to be
            ; conservative, they're only fill points if they're surrounded by
            ; whitespace. yes, this means that expressions like foo = bar*baz;
            ; won't be normalized or filled correctly.
            "\\s-\\*\\s-\\|"
            ; minus signs are only fill points if they're not being used as a
-           ; negative sign. approximate this by checking if they're followed
-           ; by whitespace. (it's a very bad approximation.)
-           "-\\s-")
-   "[&|~^][^&|=]\\|<<[^<]\\|>>[^>]"    ; bitwise and iostream operators
-   "[({[][^({[]")
+           ; negative sign or decrement. approximate this by checking if
+           ; they're surrounded by whitespace. (it's a very bad approximation.)
+           "\\s--\\s-")
+   "[|~^][^&|=]\\|<<[^<]\\|>>[^>]"      ; bitwise and iostream operators
+   "[([][^({[]"
+   "\\s-{[^({[]"
+   )
 
   "A list of regular expressions used to find fill points.
 A fill point is a point in an expression where a newline can reasonably be
@@ -366,7 +367,7 @@ for safety, just uses the end of the line."
                (search-backward ")" start 'p)
              (condition-case nil (forward-char) (error nil))))))
   
-      ;`c-end-of-statement' might be a good fallback for unknown languages,
+      ; `c-end-of-statement' might be a good fallback for unknown languages,
       ; but it occasionally fails badly, e.g. in `perl-mode'.
     (point-at-eol)))
 
@@ -407,7 +408,7 @@ point to next non-whitespace char."
 ;;   (edebug)
   (cond
 
-   ; if we're in a string literal or comment, add a space before it, thenskip
+   ; if we're in a string literal or comment, add a space before it, then skip
    ; to the end of it
    ((fillcode-in-literal)
     (when (save-excursion (backward-char) (not (fillcode-in-literal)))
@@ -435,7 +436,7 @@ point to next non-whitespace char."
 
    ; if we're before a non-special-punctuation fill point, add a space
    ((and (looking-at (fillcode-fill-point-re))
-         (not (looking-at "[,;([{&|]")))
+         (not (looking-at "[,;([{]\\|&[^&]\\||[^| ]")))
     (insert " ") 
     (goto-char (match-end 0)))
 
