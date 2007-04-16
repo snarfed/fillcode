@@ -21,6 +21,7 @@ DatastoreService service = DatastoreService::NewStub(RPC_StubParameters::ThreadS
 
 - make it compatible with filladapt-mode
 
+- templates!
 
 From ryanb@google.com Thu Jul 27 16:32:37 2006
 Date: Thu, 27 Jul 2006 16:32:31 -0700
