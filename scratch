@@ -3,7 +3,8 @@
 # to make the tar.gz package:
 #
 # ln -s . fillcode
-# tar czhf fillcode.tar.gz fillcode/fillcode*.el fillcode/elunit
+# tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el \
+#   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
 # rm -f fillcode
 
 foo(bar + baz & baj);

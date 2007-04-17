@@ -16,7 +16,7 @@ TESTED=0
 
 cd $DIR
 
-for prog in emacs xemacs  ~/emacs/src/emacs ~/xemacs/src/xemacs; do
+for prog in xemacs  ~/emacs/src/emacs ~/xemacs/src/xemacs; do
     if which $prog >& /dev/null; then
         $prog -version 2> /dev/null | head -n 2
         exec $prog --batch -l "fillcode_unittest.el" \

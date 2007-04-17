@@ -26,7 +26,7 @@
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(defconst fillcode-version "0.5")
+(defconst fillcode-version "0.6")
 
 (require 'cl)  ; for the case macro
 
