@@ -209,23 +209,31 @@ Intended to be set as `fill-paragraph-function'."
         (goto-char (point-min))
         (condition-case nil  ; fill until we hit the end of the statement
             (while (< (point) (point-max))
-              (fillcode nil))
+              (fillcode arg)
+              (setq arg nil))
             (end-of-buffer t))
           t)))))
 
 
 
-(defun fillcode (&optional open-paren-char)
+(defun fillcode (arg)
   "Fill code at point.
 The actual function-call-filling algorithm. Fills function calls and prototypes
 if it thinks the point is on a statement that has one.
 
 Returns t if it actually filled somewhere (not including just normalizing
 whitespace), nil otherwise."
-  ; the main loop. advances through the statement, filling as necessary.
-  ; recursive so we can easily determine, after we've finished with a
-  ; subexpression, whether we filled inside it.
   (let ((filled nil))
+    ; if there's a prefix arg, fill at the start of the first sexp
+    (if arg
+      (when (fillcode-forward-sexp)
+        (forward-char)
+        (fillcode-fill-here)
+        (setq filled t)))
+
+    ; the main loop. advances through the statement, filling as necessary.
+    ; recursive so we can easily determine, after we've finished with a
+    ; subexpression, whether we filled inside it.
     (catch 'sexp-end
       (while (fillcode-forward)
 ;;         (edebug)
@@ -257,11 +265,21 @@ whitespace), nil otherwise."
           (if (< fill-column (fillcode-fill-point-column-after-sexp))
               (fillcode-fill-at-fill-point 'backward))
           (forward-char)
-          (if (fillcode arg)
+          (if (fillcode nil)
               (fillcode-fill-at-fill-point 'forward)))))
 
     ; return t if we filled, nil otherwise
     filled))
+
+(defun fillcode-fill-here ()
+  (let ((orig-col (current-column)))
+    (insert "\n")
+    (indent-according-to-mode)
+    (when (>= (current-column) orig-col)
+      ; no good, we're at the same column as before we filled. ok
+      ; then, just indent a little past the last line instead.
+      (indent-line-to (+ (fillcode-get-last-line-indent-offset)
+                         (fillcode-get-mode-indent-offset))))))
 
 (defun fillcode-fill-at-fill-point (direction)
   "Fill at the nearest fill point.
@@ -280,16 +298,7 @@ line, doesn't fill and leaves point where it was before."
 
     (if (funcall find-fn)
       ; found a fill point
-      (progn
-        (let ((orig-col (current-column)))
-          (insert "\n")
-          (indent-according-to-mode)
-          (when (>= (current-column) orig-col)
-            ; no good, we're at the same column as before we filled. ok
-            ; then, just indent a little past the last line instead.
-            (indent-line-to (+ (fillcode-get-last-line-indent-offset)
-                               (fillcode-get-mode-indent-offset))))))
-
+        (fillcode-fill-here)
       ; no usable fill point found
       (goto-char orig-pt)))))
 
@@ -313,7 +322,8 @@ Return t if it moved point at all, nil otherwise."
   (unless (eolp)
     (condition-case nil
         (with-syntax-table fillcode-syntax-table
-          (forward-sexp))
+          (forward-sexp)
+          t)
       (scan-error
        (forward-char)
        t))))

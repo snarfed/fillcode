@@ -528,31 +528,33 @@ foo(//bar
 foo(\"baz,\" +
     bar);" 'java-mode 13))
 
-;; if there's a prefix argument, fill at all top-level fill points. fill at
-;; other fill points only as needed.
-;; (deftest prefix-argument ()
-;;   (fillcode-test "foo(bar);" "foo(bar);" 80 t)
+;; if there's a prefix argument, fill at the first parenthesis. fill at other
+;; fill points only as needed.
+(deftest prefix-argument
+  (fillcode-test "foofoo(bar);" "
+foofoo(
+    bar);" 80 t)
 
-;;   (fillcode-test "foo(bar,baz);" "
-;; foo(bar,
-;;     baz);" 80 t)
+  (fillcode-test "foofoo(bar,baz);" "
+foofoo(
+    bar, baz);" 80 t)
 
-;;   (fillcode-test "foo(bar,baz);" "
-;; foo(bar,
-;;     baz);" 12 t)
+  (fillcode-test "foofoo(bar,baz);" "
+foofoo(
+    bar,
+    baz);" 10 t)
 
-;;   (fillcode-test "foo(bar,baz(baj));" "
-;; foo(bar,
-;;     baz(baj));" 80 t)
+  (fillcode-test "foofoo(bar,baz(baj));" "
+foofoo(
+    bar, baz(baj));" 80 t)
 
-;;   (fillcode-test "foo(bar,baz(baj, bak));" "
-;; foo(bar,
-;;     baz(baj, bak));" 80 t)
+  (fillcode-test "foofoo(bar,baz(baj, bak));" "
+foofoo(
+    bar, baz(baj, bak));" 80 t)
 
-;;   (fillcode-test "foo(baz(baj, bak), bar);" "
-;; foo(baz(baj, bak),
-;;     bar);" 80 t ))
-
+  (fillcode-test "foofoo(baz(baj, bak), bar);" "
+foofoo(
+    baz(baj, bak), bar);" 80 t))
 
 ;; test fillcode-beginning-of-statement and fillcode-end-of-statement with
 ;; the given buffer contents and mode (adding semicolons as needed). they're
