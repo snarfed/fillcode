@@ -554,7 +554,15 @@ foofoo(
 
   (fillcode-test "foofoo(baz(baj, bak), bar);" "
 foofoo(
-    baz(baj, bak), bar);" 80 t))
+    baz(baj, bak), bar);" 80 t)
+
+  (fillcode-test "return foo(bar, baz);" "
+return foo(
+    bar, baz);" 80 t)
+
+  (fillcode-test "public static void foo(bar, baz);" "
+public static void foo(
+    bar, baz);" 80 t))
 
 ;; test fillcode-beginning-of-statement and fillcode-end-of-statement with
 ;; the given buffer contents and mode (adding semicolons as needed). they're

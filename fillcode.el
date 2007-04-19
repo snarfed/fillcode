@@ -224,17 +224,19 @@ if it thinks the point is on a statement that has one.
 Returns t if it actually filled somewhere (not including just normalizing
 whitespace), nil otherwise."
   (let ((filled nil))
-    ; if there's a prefix arg, fill at the start of the first sexp
-    (if arg
-      (when (fillcode-forward-sexp)
+    (catch 'sexp-end
+      ; if there's a prefix arg, fill at the start of the first parenthesis char
+      (when (and arg (fillcode-forward-sexp))
+        (while (not (eq ?\( (fillcode-syntax (char-after))))
+            (if (not (fillcode-forward-sexp))
+                (throw 'sexp-end t)))
         (forward-char)
         (fillcode-fill-here)
-        (setq filled t)))
+        (setq filled t))
 
-    ; the main loop. advances through the statement, filling as necessary.
-    ; recursive so we can easily determine, after we've finished with a
-    ; subexpression, whether we filled inside it.
-    (catch 'sexp-end
+      ; the main loop. advances through the statement, filling as necessary.
+      ; recursive so we can easily determine, after we've finished with a
+      ; subexpression, whether we filled inside it.
       (while (fillcode-forward)
 ;;         (edebug)
         ; skip literals
