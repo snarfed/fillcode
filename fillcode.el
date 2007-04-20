@@ -155,6 +155,15 @@ unfortunately absent."
   :type '(repeat string)
   :group 'fillcode)
 
+(defcustom fillcode-start-tokens
+  '("(" "<<")  ; "=\n")
+  "A list of strings to start filling at.
+When fillcode is invoked, it first finds the beginning of the statement, then
+looks for one of these strings. It will not fill anywhere before these strings.
+This allows it to leave prefix clauses, like template declarations, intact."
+  :type '(repeat string)
+  :group 'fillcode)
+
 (defun fillcode-fill-point-re ()
   "Build a fill point regexp from the user-customizable variable
 `fillcode-fill-points`. A function, not a variable, so that it won't skew if
@@ -205,28 +214,39 @@ Intended to be set as `fill-paragraph-function'."
       (save-excursion (save-restriction
         (narrow-to-region (fillcode-beginning-of-statement)
                           (fillcode-end-of-statement))
-        (fillcode-normalize-whitespace)
+
+        ; if there's a start token, start at it
         (goto-char (point-min))
-        (condition-case nil  ; fill until we hit the end of the statement
-            (while (< (point) (point-max))
-              (fillcode arg)
-              (setq arg nil))
-            (end-of-buffer t))
-          t)))))
+        (re-search-forward (mapconcat 'identity fillcode-start-tokens "\\|")
+                           nil t)
+
+        (save-excursion (save-match-data
+          (fillcode-normalize-whitespace)))
+
+        ; fill until we hit the end of the statement
+        (condition-case nil
+            (let ((start (match-beginning 0)))
+              (goto-char start)
+              (while (< (point) (point-max))
+                (fillcode arg start)
+                (setq arg nil)))
+          (end-of-buffer t))
+        t)))))
 
 
 
-(defun fillcode (arg)
+(defun fillcode (arg start)
   "Fill code at point.
 The actual function-call-filling algorithm. Fills function calls and prototypes
-if it thinks the point is on a statement that has one.
+if it thinks the point is on a statement that has one. Uses start as a minimum
+position bound; it won't fill before that position.
 
 Returns t if it actually filled somewhere (not including just normalizing
 whitespace), nil otherwise."
   (let ((filled nil))
     (catch 'sexp-end
       ; if there's a prefix arg, fill at the start of the first parenthesis char
-      (when (and arg (fillcode-forward-sexp))
+      (when arg
         (while (not (eq ?\( (fillcode-syntax (char-after))))
             (if (not (fillcode-forward-sexp))
                 (throw 'sexp-end t)))
@@ -237,6 +257,7 @@ whitespace), nil otherwise."
       ; the main loop. advances through the statement, filling as necessary.
       ; recursive so we can easily determine, after we've finished with a
       ; subexpression, whether we filled inside it.
+
       (while (fillcode-forward)
 ;;         (edebug)
         ; skip literals
@@ -245,7 +266,7 @@ whitespace), nil otherwise."
 
         ; fill if we need to
         (when (fillcode-should-fill)
-          (fillcode-fill-at-fill-point 'backward)
+          (fillcode-fill-at-fill-point 'backward start)
           (setq filled t))
 
         ; close-paren char, so it's the end of a sexp. return!
@@ -262,12 +283,12 @@ whitespace), nil otherwise."
         (when (and (char-after)
                    (eq (fillcode-syntax (char-after)) ?\()
                    (save-excursion
-                     (fillcode-find-fill-point-backward)
+                     (fillcode-find-fill-point-backward start)
                      (not (eq (fillcode-syntax (char-before)) ?\())))
           (if (< fill-column (fillcode-fill-point-column-after-sexp))
-              (fillcode-fill-at-fill-point 'backward))
+              (fillcode-fill-at-fill-point 'backward start))
           (forward-char)
-          (if (fillcode nil)
+          (if (fillcode nil start)
               (fillcode-fill-at-fill-point 'forward)))))
 
     ; return t if we filled, nil otherwise
@@ -283,10 +304,11 @@ whitespace), nil otherwise."
       (indent-line-to (+ (fillcode-get-last-line-indent-offset)
                          (fillcode-get-mode-indent-offset))))))
 
-(defun fillcode-fill-at-fill-point (direction)
+(defun fillcode-fill-at-fill-point (direction &optional bound)
   "Fill at the nearest fill point.
 Nearest fill point is found either before or after point, depending on
-whether direction is 'backward or 'forward, respectively.
+whether direction is 'backward or 'forward, respectively. Will not fill at a
+fill point past bound (a position).
 
 Moves point to the first non-whitespace character on the line after the fill.
 
@@ -298,7 +320,7 @@ line, doesn't fill and leaves point where it was before."
                        'fillcode-find-fill-point-forward
                      'fillcode-find-fill-point-backward)))
 
-    (if (funcall find-fn)
+    (if (funcall find-fn bound)
       ; found a fill point
         (fillcode-fill-here)
       ; no usable fill point found
@@ -404,10 +426,11 @@ Uses `fillcode-collapse-whitespace-forward'."
       (if (re-search-forward "\n\\s-*\n" nil t)
           (narrow-to-region (point-min) (match-beginning 0))))
 
-    (goto-char (point-min))
-    ; preserve indentation. use point-at-eol for xemacs compatibility.
-    (if (re-search-forward "\\S-" (point-at-eol) t)
-        (backward-char))
+    ; if we're in the indentation before the content of a line starts, preserve
+    ; the indentation. . use point-at-{b,e}ol for xemacs compatibility.
+    (if (not (re-search-backward "\\S-" (point-at-bol) t))
+        (if (re-search-forward "\\S-" (point-at-eol) t)
+            (backward-char)))
     (while (not (eobp))
       (fillcode-collapse-whitespace-forward)))
 
@@ -593,8 +616,9 @@ character, of the current line."
 
 (defun fillcode-syntax (char)
   "Returns the argument's syntax class in fillcode's syntax table."
-  (with-syntax-table fillcode-syntax-table
-    (char-syntax char)))
+  (if char
+      (with-syntax-table fillcode-syntax-table
+        (char-syntax char))))
 
 (provide 'fillcode)
 

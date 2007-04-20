@@ -9,7 +9,12 @@
 
 foo(bar + baz & baj);
 
+<template x y>
 foo(bar - baz);
+
+foofoo(bar);
+
+foo(bar->baz);
 
 foo(bar) # baz, baj
 bar

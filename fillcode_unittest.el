@@ -225,16 +225,18 @@
   (fillcode-test-in-mode "foo;baz;" "foo; baz;" 'java-mode))
 
 (deftest keyword-whitespace
-  (dolist (keyword '("if" "for" "while" "switch"))
-    (let ((golden (concat " " keyword " (bar) {")))
-      (fillcode-test golden)
-      (fillcode-test (concat " " keyword "(bar) {") golden)
-      (fillcode-test (concat " " keyword "  (bar) {") golden)
-      (fillcode-test (concat " asdf" keyword "(bar) {"))))
+  (let ((fillcode-start-tokens (remove "(" fillcode-start-tokens)))
 
-  (fillcode-test "foo(bar) {")
-  (fillcode-test "foo (bar) {" "foo(bar) {")
-  (fillcode-test "foo   (bar) {" "foo(bar) {"))
+    (dolist (keyword '("if" "for" "while" "switch"))
+      (let ((golden (concat " " keyword " (bar) {")))
+        (fillcode-test golden)
+        (fillcode-test (concat " " keyword "(bar) {") golden)
+        (fillcode-test (concat " " keyword "  (bar) {") golden)
+        (fillcode-test (concat " asdf" keyword "(bar) {"))))
+
+    (fillcode-test "foo(bar) {")
+    (fillcode-test "foo (bar) {" "foo(bar) {")
+    (fillcode-test "foo   (bar) {" "foo(bar) {")))
 
 (deftest classes
   (fillcode-test "class foo {};")
@@ -314,6 +316,13 @@ foo(bar, baz,
 foo(bar,
     bazbaz,
     baj);" 10))
+
+(deftest start-token
+  "Filling should only start at tokens in `fillcode-start-tokens'."
+ (fillcode-test "template <typename xyz>\nfoo();")
+;; (fillcode-test "const foo bar =\nbazy;")
+)
+
 
 (deftest multiple-identifiers-between-commas
   (fillcode-test "foo(bar baz, baj baf);" "
