@@ -7,7 +7,26 @@
 #   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
 # rm -f fillcode
 
-foo(bar + baz & baj);
+asdf;
+foo(bar, x {a, b});
+
+  remote_datastore_->BeginTransaction(
+      rpc, updated_request, transaction,
+      NewCallback(Done<BeginTransactionRequest, Transaction>, rpc,
+                  updated_request, resp, callback));
+}
+
+asdf();
+
+if (qwert, bar) {
+  } else if (bar,
+             baz) {
+  } else if (query->filter_size() > 0 &&
+             (query->filter(0).op() == Query::Filter::IN ||
+              query->filter(0).op() Query::Filter::BETWEEN)) {
+  }
+
+foo(bar, baz);
 
 <template x y>
 foo(bar - baz);

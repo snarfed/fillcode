@@ -4,7 +4,7 @@
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005-2006 Ryan Barrett <fillcode@ryanb.org>
 ;;
-;; Unit tests for fillcode; run them with M-x eval-buffer C-F10 or
+;; Unit tests for fillcode; run them with M-x eval-buffer, C-F10 or
 ;; ./elunit/runtests.sh.
 ;; For more information about fillcode, see fillcode.el.
 ;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
@@ -24,11 +24,9 @@
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(if (not (member "." load-path))
-    (setq load-path (cons "." load-path)))
-(if (not (member "elunit" load-path))
-    (setq load-path (cons "elunit" load-path)))
-
+(dolist (dir (list "." "elunit" (concat (getenv "HOME") "/bin")))
+  (if (not (member dir load-path))
+      (setq load-path (cons dir load-path))))
 
 (require 'elunit)
 ;; override so that elunit instruments the fillcode-test calls with line #s
@@ -38,6 +36,8 @@
   "(\\(fillcode-test\\|fillcode-test-in-mode\\)\\([) \t\n]\\)")
 
 (require 'fillcode)
+(require 'python-mode)
+(require 'cc-mode)  ; includes c++-mode and java-mode
 
 (global-set-key [(control f10)]
   (lambda ()
@@ -45,15 +45,29 @@
     (save-some-buffers)
     (elunit-run '("fillcode_unittest.el"))))
 
-(global-set-key [(control f9)] 'run-last-test)
+(defun find-test (tests test-symbol)
+  (if tests
+      (if (equal test-symbol (car (car tests)))
+          (car tests)
+        (find-test (cdr tests) test-symbol))  ; recursive step
+    nil))  ; base case
 
-(defun run-last-test ()
-  (interactive)
-  (eval-defun nil)
-  (get-buffer-create "*Elunit Result*")
-  (switch-to-buffer-other-window "*Elunit Result*")
+(global-set-key [(control f8)] 'run-test)
+(global-set-key [(control f9)] 
+                (lambda () (interactive) (run-test fillcode-last-test)))
+
+(defun run-test (test-symbol)
+  (interactive "STest: ")
+  (save-some-buffers)
+  (set-buffer (get-buffer-create "*Elunit Result*"))
+  (-elunit-load-test-suite '("fillcode_unittest.el"))
   (erase-buffer)
-  (apply '-elunit-insert-result (-elunit-run-test (list (car elunit-tests)))))
+  (let ((test (find-test elunit-tests test-symbol)))
+    (if test
+        (progn (apply '-elunit-insert-result (-elunit-run-test (list test)))
+               (-elunit-show-result)
+               (setq fillcode-last-test test-symbol))
+      (message "Test %s not found." test-symbol))))
 
 ; test harness. runs fillcode on the given input in a temp buffer in python,
 ; java, and c++ major modes. appends semicolons in java-mode and open curly
@@ -573,27 +587,37 @@ return foo(
 public static void foo(
     bar, baz);" 80 t))
 
-;; test fillcode-beginning-of-statement and fillcode-end-of-statement with
-;; the given buffer contents and mode (adding semicolons as needed). they're
-;; tried with point at begin, end, and halfway between. begin and end are
-;; the expected values.
-(defun test-boundaries (contents begin end)
-  ; try all three modes
-  (dolist (mode '(python-mode c++-mode java-mode))
-    ; set up the buffer
-    (with-temp-buffer
-      (toggle-mode-clean mode)
-      (insert-string contents) ; *after* setting mode
-      ; try at beginning, end, and in between
-      (dolist (point (list begin end
-                           (+ begin (/ (- end begin) 2))))
-        (progn
-          (goto-char point)
-          (assert-equal 0 ; fake line number
-                        begin (fillcode-beginning-of-statement))
-          (assert-equal 0 ; fake line number
-                        end (fillcode-end-of-statement))
-          )))))
+(deftest if-else-if
+  (dolist (mode '(c++-mode java-mode))
+    (fillcode-test-in-mode "if (foo) {" "if (foo) {" mode)
+    (fillcode-test-in-mode "if ( foo )  { " "if (foo) {" mode)
+    (fillcode-test-in-mode "if (foo, bar) {" "if (foo,
+    bar) {" mode 10)
+    (fillcode-test-in-mode "} else if (foo, bar) {" "} else if (foo,
+           bar) {" mode 16)))
+
+;; test fillcode-beginning-of-statement and fillcode-end-of-statement with the
+;; given buffer contents and modes, adding semicolons as needed. they're tried
+;; with point at begin, end, and halfway between. begin and end are the
+;; expected values.
+(defun test-boundaries (contents begin end &optional modes)
+  (let ((modes (if modes modes '(python-mode c++-mode java-mode))))
+                                        ; try all three modes
+    (dolist (mode )
+                                        ; set up the buffer
+      (with-temp-buffer
+        (toggle-mode-clean mode)
+        (insert-string contents)        ; *after* setting mode
+                                        ; try at beginning, end, and in between
+        (dolist (point (list begin end
+                             (+ begin (/ (- end begin) 2))))
+          (progn
+            (goto-char point)
+            (assert-equal 0             ; fake line number
+                          begin (fillcode-beginning-of-statement))
+            (assert-equal 0             ; fake line number
+                          end (fillcode-end-of-statement))
+            ))))))
 
 (deftest statement-boundaries
   ;; note that (point-min) is 1
@@ -605,6 +629,13 @@ public static void foo(
 
   (test-boundaries "foo(x );\nbar(y);" 1 9)
   (test-boundaries "foo(x );\nbar(y);" 10 17)
+
+  (test-boundaries "if (qwert) {
+} else if (asdf) {
+}" 1 13 '(c++-mode java-mode))
+  (test-boundaries "if (qwert) {
+} else if (asdf) {
+}" 16 32 '(c++-mode java-mode))
 
   ; point is at the beginning of the buffer, so *only* the first statement
   ; should be filled
