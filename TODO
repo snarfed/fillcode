@@ -2,9 +2,10 @@
 
 - make it compatible with filladapt-mode
 
-C-u M-q fills at the empty parens:
-
-  ResultSetCursor* data = datastore->cursors().Get(
-      "security-ticket", response->cursor().cursor());
-
 - fill *before* the <<'s in iostream statements, not after
+
+- this breaks:
+  remote_datastore_->BeginTransaction(
+      rpc, updated_request, transaction,
+      NewCallback(Done<BeginTransactionRequest, Transaction>, rpc,
+                  updated_request, resp, callback));

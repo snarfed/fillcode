@@ -265,9 +265,11 @@ Returns t if it actually filled somewhere (not including just normalizing
 whitespace), nil otherwise."
   (let ((filled nil))
     (catch 'sexp-end
-      ; if there's a prefix arg, fill at the start of the first parenthesis char
+      ; if there's a prefix arg, fill at the start of the first parenthesis
+      ; char. don't fill if it's an empty parenthetical, though, e.g. foo().
       (when arg
-        (while (not (eq ?\( (fillcode-syntax (char-after))))
+        (while (or (not (eq ?\( (fillcode-syntax (char-after))))
+                   (eq ?\) (fillcode-syntax (char-after (+ 1 (point))))))
             (if (not (fillcode-forward-sexp))
                 (throw 'sexp-end t)))
         (forward-char)

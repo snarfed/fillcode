@@ -585,7 +585,11 @@ return foo(
 
   (fillcode-test "public static void foo(bar, baz);" "
 public static void foo(
-    bar, baz);" 80 t))
+    bar, baz);" 80 t)
+
+  ; don't fill at empty parenthetical expresions
+  (fillcode-test "foo().bar(baz);" "foo().bar(
+    baz);" 80 t))
 
 (deftest if-else-if
   (dolist (mode '(c++-mode java-mode))
