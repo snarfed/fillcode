@@ -1,3 +1,10 @@
 - add beginning-of-statement fns for more languages
 
 - make it compatible with filladapt-mode
+
+C-u M-q fills at the empty parens:
+
+  ResultSetCursor* data = datastore->cursors().Get(
+      "security-ticket", response->cursor().cursor());
+
+- fill *before* the <<'s in iostream statements, not after
