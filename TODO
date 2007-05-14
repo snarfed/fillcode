@@ -2,10 +2,4 @@
 
 - make it compatible with filladapt-mode
 
-- fill *before* the <<'s in iostream statements, not after
-
-- this breaks:
-  remote_datastore_->BeginTransaction(
-      rpc, updated_request, transaction,
-      NewCallback(Done<BeginTransactionRequest, Transaction>, rpc,
-                  updated_request, resp, callback));
+- sometimes prefix arg doesn't work. (find example from work)

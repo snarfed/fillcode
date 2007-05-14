@@ -7,16 +7,42 @@
 #   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
 # rm -f fillcode
 
+   asdf;
 asdf;
+   EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
+
+foo(x(y, z));
+    EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
+    MegastoreDatastore::MegastoreDatastore(
+        const string &megastore_spec,
+        gaia_client::GaiaExternalClient* gaia_client);
+
+  remote_datastore_->BeginTransaction(
+      rpc, updated_request, transaction,
+      NewCallback(Done<BeginTransactionRequest, Transaction>, rpc,
+                  updated_request, resp, callback));
+
+asdf {
+        CHECK(found != handles_.end())
+            << "Attempt to delete nonexistent handle " << handle
+        << " for security ticket " << security_ticket;
+}
+
+asdf(foo++ >
+     baz++ biff++);
+
+foo_foo()
+    << barbazz
+    << boof;
+
 foo(bar, x {a, b});
 
   remote_datastore_->BeginTransaction(
       rpc, updated_request, transaction,
       NewCallback(Done<BeginTransactionRequest, Transaction>, rpc,
                   updated_request, resp, callback));
-}
 
-asdf();
+asdf().qwert(asdf, baz);
 
 if (qwert, bar) {
   } else if (bar,
@@ -95,7 +121,7 @@ DatastoreService service = DatastoreService::NewStub(
 //   (move-to-column fill-column)
 //
 //   (if (not (catch 'no-fill-point
-//              (fillcode-find-fill-point-backward)   
+//              (fillcode-find-fill-point-backward)
 // ;;              (if (>= (current-column) fill-column)
 //                  ; we started before fill-column. how'd we end up after it?!?
 // ;;                  (throw 'find-fill-point-backward-moved-past-fill-column nil))

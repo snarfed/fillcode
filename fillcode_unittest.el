@@ -78,7 +78,7 @@
 ;
 ; if `expected' is not provided, `input' is not expected to change.
 ;
-; if `fill-col' is provided, `fill-column' is set to it.
+; if `fill-col' is provided, `fill-column' is set to it. defaults to 80.
 ;
 ; if `prefix-arg' is provided, it is passed as the first argument to
 ; `fill-paragraph-function'.
@@ -230,16 +230,19 @@
   (fillcode-test "foo(\n  bar\n  ,\n  baz\n  );" "foo(bar, baz);"))
 
 (deftest operator-whitespace
-  (fillcode-test "foo(bar+baz);" "foo(bar + baz);")
+  (fillcode-test "foo(bar +baz);" "foo(bar + baz);")
   (fillcode-test "foo(bar  -  baz);" "foo(bar - baz);")
   (fillcode-test "foo(bar /baz);" "foo(bar / baz);")
   (fillcode-test "foo(bar  *  baz);" "foo(bar * baz);")
   (fillcode-test "foo(bar  &&  baz);" "foo(bar && baz);")
   (fillcode-test "foo(bar  ||  baz);" "foo(bar || baz);")
-  (fillcode-test-in-mode "foo;baz;" "foo; baz;" 'java-mode))
+  (fillcode-test-in-mode "foo;baz;" "foo; baz;" 'java-mode)
+  (fillcode-test "foo(bar++  baz++);" "foo(bar++ baz++);")
+  (fillcode-test "foo(bar--  baz--);" "foo(bar-- baz--);")
+  )
 
 (deftest keyword-whitespace
-  (let ((fillcode-start-tokens (remove "(" fillcode-start-tokens)))
+  (let ((fillcode-start-token-re ""))
 
     (dolist (keyword '("if" "for" "while" "switch"))
       (let ((golden (concat " " keyword " (bar) {")))
@@ -329,11 +332,18 @@ foo(bar, baz,
   (fillcode-test "foo(bar, bazbaz, baj);" "
 foo(bar,
     bazbaz,
-    baj);" 10))
+    baj);" 10)
+
+  ; filling at baz brings it to the same fill column as the open parenthesis,
+  ; which doesn't help any. instead, fill it to c-basic-offset past the last
+  ; line's indentation.
+  (fillcode-test "foofoofoo(baz);" "foofoofoo(
+    baz);" 12)
+)
 
 (deftest start-token
   "Filling should only start at tokens in `fillcode-start-tokens'."
- (fillcode-test "template <typename xyz>\nfoo();")
+ (fillcode-test "template <typename xyz>\nfoo(bar);")
 ;; (fillcode-test "const foo bar =\nbazy;")
 )
 
@@ -352,11 +362,11 @@ foo(bar baz baj,
   (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
 
-  ; in cc-mode and friends, filling at baz brings it to the same fill column
-  ; as the second parenthesis, which doesn't help any. instead, fill it to
-  ; c-basic-offset past the last line's indentation.
-  (fillcode-test "foofoo(barbar(baz));" "foofoo(barbar(
-    baz));" 14)
+  ; 14 is in the middle of baz, so it should fill at the open paren before
+  ; barbar first.
+  (fillcode-test-in-mode "foofoo(barbar(baz));" "foofoo(
+    barbar(
+        baz));" 'c++-mode 14)
 
   ; try with the fill column on different parts of the nested function call.
   ; the full text is:  foo(barbarbar, baz(x), baf)
@@ -373,8 +383,8 @@ foo(barbarbar,
 
   ; [space]
   (fillcode-test "foo(barbarbar, baz(x), baf);" "
-foo(barbarbar, baz(x),
-    baf);" 22)
+foo(barbarbar,
+    baz(x), baf);" 22)
 
   ; b
   (fillcode-test "foo(barbarbar, baz(x), baf);" "
@@ -423,7 +433,7 @@ foo(bar +
     baf /
     baj *
     bap);" 11)
-  (fillcode-test "foo(bar+baz);" "
+  (fillcode-test "foo(bar +baz);" "
 foo(bar +
     baz);" 10))
 
@@ -461,23 +471,23 @@ foo(bar) foo(baz,
 
 (deftest non-fill-points
   ;; make sure that tokens aren't normalized or filled at other special tokens
-  (fillcode-test "foo(bar.baz);"  "foo(\n    bar.baz);"  9)
-  (fillcode-test "foo(bar_baz);"  "foo(\n    bar_baz);"  9)
-  (fillcode-test "foo(bar%baz);"  "foo(\n    bar%baz);"  9)
-  (fillcode-test "foo(bar$baz);"  "foo(\n    bar$baz);"  9)
-  (fillcode-test "foo(bar`baz);"  "foo(\n    bar`baz);"  9)
-  (fillcode-test "foo(bar@baz);"  "foo(\n    bar@baz);"  9)
-  (fillcode-test "foo(bar!baz);"  "foo(\n    bar!baz);"  9)
-  (fillcode-test "foo(bar:baz);"  "foo(\n    bar:baz);"  9)
-  (fillcode-test "foo(bar?baz);"  "foo(\n    bar?baz);"  9)
-  (fillcode-test "foo(bar->baz);" "foo(\n    bar->baz);" 9)
-  (fillcode-test "foo(bar *baz);" "foo(\n    bar *baz);" 9)  ;; pointers
-  (fillcode-test "foo(bar* baz);" "foo(\n    bar* baz);" 9)
-  (fillcode-test "foo(bar*baz);"  "foo(\n    bar*baz);"  9)
-  (fillcode-test "foo(bar &baz);" "foo(\n    bar &baz);" 9)  ;; references
-  (fillcode-test "foo(bar& baz);" "foo(\n    bar& baz);" 9)
-  (fillcode-test "foo(bar&baz);"  "foo(\n    bar&baz);"  9)
-  (fillcode-test-in-mode "foo(bar#baz);" "foo(\n    bar#baz);"  'c++-mode 9))
+  (fillcode-test "foo(bar.baz);"  "foo(bar.baz);"  9)
+  (fillcode-test "foo(bar_baz);"  "foo(bar_baz);"  9)
+  (fillcode-test "foo(bar%baz);"  "foo(bar%baz);"  9)
+  (fillcode-test "foo(bar$baz);"  "foo(bar$baz);"  9)
+  (fillcode-test "foo(bar`baz);"  "foo(bar`baz);"  9)
+  (fillcode-test "foo(bar@baz);"  "foo(bar@baz);"  9)
+  (fillcode-test "foo(bar!baz);"  "foo(bar!baz);"  9)
+  (fillcode-test "foo(bar:baz);"  "foo(bar:baz);"  9)
+  (fillcode-test "foo(bar?baz);"  "foo(bar?baz);"  9)
+  (fillcode-test "foo(bar->baz);" "foo(bar->baz);" 9)
+  (fillcode-test "foo(bar *baz);" "foo(bar *baz);" 9)  ;; pointers
+  (fillcode-test "foo(bar* baz);" "foo(bar* baz);" 9)
+  (fillcode-test "foo(bar*baz);"  "foo(bar*baz);"  9)
+  (fillcode-test "foo(bar &baz);" "foo(bar &baz);" 9)  ;; references
+  (fillcode-test "foo(bar& baz);" "foo(bar& baz);" 9)
+  (fillcode-test "foo(bar&baz);"  "foo(bar&baz);"  9)
+  (fillcode-test-in-mode "foo(bar#baz);" "foo(bar#baz);"  'c++-mode 9))
 
 (deftest literals
   ;; string literals and comments should be kept intact and treated as single,
@@ -486,9 +496,8 @@ foo(bar) foo(baz,
   (fillcode-test-in-mode "foo('bar,baz');" nil 'python-mode)
   (fillcode-test-in-mode "foo(\"\"\"bar,baz\"\"\");" nil 'python-mode)
 
-  (fillcode-test "foo(\"bar,baz\");" "foo(\n    \"bar,baz\");" 9)
-  (fillcode-test-in-mode "foo('bar,baz');" "foo(\n    'bar,baz');"
-                         'python-mode 9)
+  (fillcode-test "foo(\"bar,baz\");" nil 9)
+  (fillcode-test-in-mode "foo('bar,baz');" nil 'python-mode 9)
 
   (fillcode-test "foo(\"bar\" + baz + \"baj\");" "
 foo(\"bar\" +
@@ -496,8 +505,7 @@ foo(\"bar\" +
     \"baj\");" 12)
 
   (fillcode-test "foo(\"bar + bar\" + baz + \"baj + baj\");" "
-foo(
-    \"bar + bar\" +
+foo(\"bar + bar\" +
     baz +
     \"baj + baj\");" 16)
 
@@ -509,14 +517,13 @@ foo(
   ; figured out how to make this test portable. :/)
 ;;   (fillcode-test-in-mode "foo(bar) # baz, baj" nil 'python-mode 16)
 
-  (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "foo(
-    bar,
+  (fillcode-test-in-mode "foo(bar, /*baz ,baj*/, bax);" "
+foo(bar,
     /*baz ,baj*/,
     bax);" 'java-mode 6)
 
-  (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "foo(
-    bar,
-    //baz ,baj,
+  (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "
+foo(bar, //baz ,baj,
     bax);" 'c++-mode 6)
 
   (fillcode-test-in-mode "foo(bar, //baz ,baj,\nbax);" "
@@ -591,6 +598,23 @@ public static void foo(
   (fillcode-test "foo().bar(baz);" "foo().bar(
     baz);" 80 t))
 
+;; test that fillcode obeys the `fillcode-before-fill-points' list, and fills
+;; *before* those fill points, not after.
+(deftest before-fill-points
+  (dolist (mode '(c++-mode java-mode))
+    (fillcode-test-in-mode "foo_foo() << bar;" "foo_foo()
+    << bar;" mode 13)
+    (fillcode-test-in-mode "foo_foo() << bar;" "foo_foo()
+    << bar;" mode 13 t)
+
+    ; TODO(ryanb): indent-according-to-mode with iostream operators doesn't
+    ; work on the second line, since we've narrowed out the enclosing braces.
+    (fillcode-test-in-mode "foo_foo() << bar << bazbaz;o" "foo_foo()
+    << bar
+    << bazbaz;" mode 13)
+))
+
+;; test that fillcode fills conditionals in if/else if statements
 (deftest if-else-if
   (dolist (mode '(c++-mode java-mode))
     (fillcode-test-in-mode "if (foo) {" "if (foo) {" mode)
@@ -607,7 +631,7 @@ public static void foo(
 (defun test-boundaries (contents begin end &optional modes)
   (let ((modes (if modes modes '(python-mode c++-mode java-mode))))
                                         ; try all three modes
-    (dolist (mode )
+    (dolist (mode)
                                         ; set up the buffer
       (with-temp-buffer
         (toggle-mode-clean mode)
@@ -653,7 +677,7 @@ public static void foo(
   (dolist (i '(15 16 17 18))
     (fillcode-test-in-mode "foo(bar, x {a, b});" "foo(bar,\n    x {a, b});"
                            'c++-mode i)
-    (dolist (sexp '("(a, b)" "[a, b]" "<a, b>"))
+    (dolist (sexp '("(a, b)" "[a, b]"))
       (fillcode-test (concat "foo(bar, baz" sexp ");")
                      (concat "foo(bar,\n    baz" sexp ");") i)))
 
@@ -666,29 +690,21 @@ foo(barbarbar,
     (x, y), baz);" 19))
 
 
-(defconst ordered-fill-points
-  '((",")
-    (" &&" " ||")
-    (" ==" " !=" " >=" " <=" " >" " <")
-    (" +" " -" " /" " *")
-    (" &" " |" " ~" " ^" " <<" " >>")))
-
 (defun precedence-test-in-mode (fill-points modes)
-  "Test that fillcode prefers to fill at fill points in (car fill-points) over
-fill points in any of the lists in (cdr fill-points)."
-  (when fill-points  ; base case
-    (dolist (mode modes)
-      (dolist (first (car fill-points))
-        (dolist (second (apply 'append (cdr fill-points)))
-          (fillcode-test-in-mode (concat "foo(bar" first " baz" second " baj);")
-                                 (concat "
+  "Test that fillcode prefers fill points in order of precedence."
+  (when (>= (length fill-points) 2)  ; base case
+    (let ((first (car fill-points))
+          (second (cadr fill-points)))
+      (dolist (mode modes)
+        (fillcode-test-in-mode (concat "foo(bar" first " baz" second " baj);")
+                               (concat "
 foo(bar" first "
     baz" second " baj);")
-                                 mode 16))))
+                               mode 16)))
     (precedence-test-in-mode (cdr fill-points) modes)))  ; recursive step
 
 (deftest fill-point-hierarchy
-  ; test which fill points take precedence
-  (precedence-test-in-mode ordered-fill-points '(python-mode))
-  (precedence-test-in-mode (cons '(";") ordered-fill-points)
-                           '(java-mode c++-mode)))
+  (let ((ordered-fill-points '("," " &&" " ==" " +" " &")))
+    (precedence-test-in-mode ordered-fill-points '(python-mode))
+    (precedence-test-in-mode (cons ";" ordered-fill-points)
+                             '(java-mode c++-mode))))
