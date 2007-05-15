@@ -366,6 +366,18 @@ foo(bar baz baj,
   (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
 
+  ; try this one when the semicolon is just before fill-column (after
+  ; filling), directly on it, and after it.
+  (dolist (fill-column '(12 13 14))
+    (fillcode-test "foo(asdf, qwert());" "foo(asdf,
+   qwert());" fill-column))
+
+  ; in cc-mode and friends, filling at baz brings it to the same fill column
+  ; as the second parenthesis, which doesn't help any. instead, fill it to
+  ; c-basic-offset past the last line's indentation.
+  (fillcode-test "foofoo(barbar(baz));" "foofoo(barbar(
+    baz));" 14)
+
   ; 14 is in the middle of baz, so it should fill at the open paren before
   ; barbar first.
   (fillcode-test-in-mode "foofoo(barbar(baz));" "foofoo(
