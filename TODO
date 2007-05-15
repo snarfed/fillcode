@@ -3,3 +3,5 @@
 - make it compatible with filladapt-mode
 
 - sometimes prefix arg doesn't work. (find example from work)
+
+- maybe keep sexp together only if it's not the first? and/or not the last?

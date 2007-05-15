@@ -339,13 +339,17 @@ foo(bar,
   ; line's indentation.
   (fillcode-test "foofoofoo(baz);" "foofoofoo(
     baz);" 12)
-)
+
+  ; filling after the comma still leaves bazbaz + bajbaj); past fill-column.
+  ; by precedence, the comma is the preferred fill point, but it's on the last
+  ; line, so it can't be used.
+  (fillcode-test "foo(bar, bazbaz + bajbaj);" "foo(bar,
+    bazbaz +
+    bajbaj);" 12))
 
 (deftest start-token
   "Filling should only start at tokens in `fillcode-start-tokens'."
- (fillcode-test "template <typename xyz>\nfoo(bar);")
-;; (fillcode-test "const foo bar =\nbazy;")
-)
+ (fillcode-test "template <typename xyz>\nfoo(bar);"))
 
 
 (deftest multiple-identifiers-between-commas
@@ -466,8 +470,7 @@ foo(bar +
   (fillcode-test "foo(bar) foo(baz,baj);" "foo(bar) foo(baz, baj);")
   (fillcode-test "foo(bar) foo(baz,baj);" "
 foo(bar) foo(baz,
-             baj);" 18)
-)
+             baj);" 18))
 
 (deftest non-fill-points
   ;; make sure that tokens aren't normalized or filled at other special tokens
@@ -607,12 +610,13 @@ public static void foo(
     (fillcode-test-in-mode "foo_foo() << bar;" "foo_foo()
     << bar;" mode 13 t)
 
-    ; TODO(ryanb): indent-according-to-mode with iostream operators doesn't
-    ; work on the second line, since we've narrowed out the enclosing braces.
-    (fillcode-test-in-mode "foo_foo() << bar << bazbaz;o" "foo_foo()
+    (fillcode-test-in-mode "foo_foo() << bar << bazbaz;" "foo_foo()
     << bar
     << bazbaz;" mode 13)
-))
+
+    (fillcode-test-in-mode "foo() << \"bar\" << \"baz\";" "
+foo() << \"bar\"
+      << \"baz\";" mode 18)))
 
 ;; test that fillcode fills conditionals in if/else if statements
 (deftest if-else-if

@@ -11,6 +11,7 @@
 asdf;
    EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
 
+  EXPECT_EQ(4, varz_->GetCounterDeltaAndReset("datastore-query-results-returned{kind}"));
 foo(x(y, z));
     EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
     MegastoreDatastore::MegastoreDatastore(
@@ -25,15 +26,15 @@ foo(x(y, z));
 asdf {
         CHECK(found != handles_.end())
             << "Attempt to delete nonexistent handle " << handle
-        << " for security ticket " << security_ticket;
+            << " for security ticket " << security_ticket;
 }
 
 asdf(foo++ >
      baz++ biff++);
 
-foo_foo()
-    << barbazz
-    << boof;
+    qwert;
+    foo_foo() << barbazz
+              << boof;
 
 foo(bar, x {a, b});
 

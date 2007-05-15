@@ -96,17 +96,6 @@ it needs a chance to run (without narrowing!), which this advice provides."
    (fillcode-fill-paragraph arg))) ; arg is c-fill-paragraph's arg
 
 
-(defconst fillcode-syntax-table
-  (let ((fillcode-table (copy-syntax-table c-mode-syntax-table)))
-;;     (modify-syntax-entry ?< "(>" fillcode-table)
-;;     (modify-syntax-entry ?> ")<" fillcode-table)
-    fillcode-table)
-  "The syntax table used to run fillcode. Right now, it's just the cc-mode
-syntax table with < and > added to the open and close parenthesis classes,
-respectively.")
-
-
-
 (defgroup fillcode nil
   "Fill code"
   :group 'fill)
@@ -232,21 +221,24 @@ Intended to be set as `fill-paragraph-function'."
                           (fillcode-end-of-statement))
         (goto-char (point-min))
 
-        (let ((inserted-char
-              ; if the first character is a closing char, temporarily replace
-              ; the whitespace before it with a matching open char so that the
-              ; major modes' indentation works.
-              (progn
-                (re-search-forward "\\S-" nil t)  ; skip whitespace
-                (when (eq ?\) (fillcode-syntax (char-before)))
-                  (let ((char (cdr (aref c-mode-syntax-table (char-before)))))
-                    (goto-char (point-min))
-                   (insert char "\n"))
-                  t
-                  ; else return nil
-                  ))))
+        (let ((inserted-brace
+               ; in cc-modes, insert an opening brace so that indentation (e.g.
+               ; for iostreams operators) works. sigh.
+               (if (member major-mode
+                           '(c-mode c++-mode java-mode objc-mode perl-mode))
+                   (progn (insert " {\n") t))) ; else nil
+              (inserted-opener
+               ; if the first character is a closing char, temporarily replace
+               ; the whitespace before it with a matching open char so that the
+               ; major modes' indentation works.
+               (progn
+                 (re-search-forward "\\S-" nil t)  ; skip whitespace
+                 (when (eq ?\) (fillcode-syntax (char-before)))
+                   (let ((char (cdr (aref c-mode-syntax-table (char-before)))))
+                     (goto-char (point-at-bol))
+                     (insert char "\n")
+                     t))))) ; else nil
 
-  
           ; if there's a start token, start at it
           (let ((start
                  (if (re-search-forward fillcode-start-token-re nil t)
@@ -264,9 +256,11 @@ Intended to be set as `fill-paragraph-function'."
                   (setq arg nil))
               (end-of-buffer t)))
 
-          ; if we inserted an opening char, delete it.
-          (when inserted-char
-            (goto-char (point-min))
+          ; if we inserted characters, delete them.
+          (goto-char (point-min))
+          (when inserted-brace
+            (delete-char 3))
+          (when inserted-opener
             (delete-char 2))
 
           t))))))
@@ -303,16 +297,15 @@ whitespace), nil otherwise."
           (setq filled t))
 
         ; close-paren char, so it's the end of a sexp. return!
-        (when (and (char-after)
-                   (eq (fillcode-syntax (char-after)) ?\))
+        (when (and (eq ?\) (fillcode-syntax (char-after)))
                    ; there must not be whitespace before the close paren char.
                    ; otherwise, it might be an operator like >=, which is most
                    ; definitely *not* the end of a sexp.
-                   (not (eq (fillcode-syntax (char-before)) ?\ )))
+                   (not (eq ?\  (fillcode-syntax (char-before)))))
             (throw 'sexp-end t))
 
         ; recurse into sexps
-        (when (and (char-after) (eq (fillcode-syntax (char-after)) ?\())
+        (when (eq ?\( (fillcode-syntax (char-after)))
 
           ; if this sexp extends beyond fill-column, and there's an earlier
           ; *non-open-paren* fill point we can use, fill at that fill point
@@ -320,7 +313,7 @@ whitespace), nil otherwise."
             (when (and next-fill-col (> next-fill-col fill-column))
               (let ((prev-fill-pt (fillcode-find-fill-point-backward
                                    (max start (point-at-bol)))))
-                (when (not (eq (fillcode-syntax (char-before prev-fill-pt)) ?\())
+                (when (not (eq ?\( (fillcode-syntax (char-before prev-fill-pt))))
                   (fillcode-fill-at-match)))))
 
           ; recurse!
@@ -383,7 +376,7 @@ Return t if it moved point at all, nil otherwise."
 Return t if it moved across an entire sexp, nil otherwise."
   (unless (eolp)
     (condition-case nil
-        (with-syntax-table fillcode-syntax-table
+        (progn
           (forward-sexp)
           t)
       (scan-error
@@ -454,26 +447,26 @@ close parens, one space after commas, one space before and after arithmetic
 operators. Except string literals and comments, they're left untouched.
 
 Uses `fillcode-collapse-whitespace-forward'."
-    ; don't fill across blank lines, whether they're before point...
-    (save-excursion
-      (forward-line)
-      (beginning-of-line)
-      (if (re-search-backward "\n\\s-*\n" nil t)
-          (narrow-to-region (match-end 0) (point-max))))
-    ; ...or after
-    (save-excursion
-      (forward-line -1)
-      (end-of-line)
-      (if (re-search-forward "\n\\s-*\n" nil t)
-          (narrow-to-region (point-min) (match-beginning 0))))
+  ; don't fill across blank lines, whether they're before point...
+  (save-excursion
+    (forward-line)
+    (beginning-of-line)
+    (if (re-search-backward "\n\\s-*\n" nil t)
+        (narrow-to-region (match-end 0) (point-max))))
+  ; ...or after
+  (save-excursion
+    (forward-line -1)
+    (end-of-line)
+    (if (re-search-forward "\n\\s-*\n" nil t)
+        (narrow-to-region (point-min) (match-beginning 0))))
 
-    ; if we're in the indentation before the content of a line starts, preserve
-    ; the indentation. . use point-at-{b,e}ol for xemacs compatibility.
-    (if (not (save-excursion (re-search-backward "\\S-" (point-at-bol) t)))
-        (if (re-search-forward "\\S-" (point-at-eol) t)
-            (backward-char)))
-    (while (not (eobp))
-      (fillcode-collapse-whitespace-forward)))
+  ; if we're in the indentation before the content of a line starts, preserve
+  ; the indentation. . use point-at-{b,e}ol for xemacs compatibility.
+  (if (not (save-excursion (re-search-backward "\\S-" (point-at-bol) t)))
+      (if (re-search-forward "\\S-" (point-at-eol) t)
+          (backward-char)))
+  (while (not (eobp))
+    (fillcode-collapse-whitespace-forward)))
 
 (defun fillcode-collapse-whitespace-forward ()
   "Delete newlines, normalize whitespace, and/or move forward one character.
@@ -512,6 +505,7 @@ point to next non-whitespace char."
 
    ; if we're before a non-special-punctuation fill point, add a space
    ((and (looking-at fill-point-re)
+         (not (looking-at fillcode-before-fill-point-re))
          (not (looking-at "[,;([{]\\|&[^&]\\||[^| ]")))
     (insert " ")
     (goto-char (match-end 0)))
@@ -566,7 +560,9 @@ We should fill if:
 (defun fillcode-find-fill-point-forward (&optional bound)
   ; use point-at-eol for xemacs compatibility
   (fillcode-find-fill-point-helper 're-search-forward
-                                   (if bound bound (point-at-eol))))
+                                   (if bound
+                                       (min bound (point-at-eol))
+                                     (point-at-eol))))
 
 (defun fillcode-find-fill-point-backward (&optional bound)
   ; the fill point regexp ends at the first char *after* the
@@ -574,7 +570,9 @@ We should fill if:
   (forward-char)
   ; use point-at-bol for xemacs compatibility
   (fillcode-find-fill-point-helper 're-search-backward
-                                   (if bound bound (point-at-bol))))
+                                   (if bound
+                                       (max bound (point-at-bol))
+                                     (point-at-bol))))
 
 (defun fillcode-fill-point-column-after-sexp ()
   "Return the column of the closest fill point after the sexp at point.
@@ -680,10 +678,9 @@ character, of the current line."
     (current-column)))
 
 (defun fillcode-syntax (char)
-  "Returns the argument's syntax class in fillcode's syntax table."
+  "Returns the argument's syntax class, or nil if the argument is nil."
   (if char
-      (with-syntax-table fillcode-syntax-table
-        (char-syntax char))))
+      (char-syntax char)))
 
 (provide 'fillcode)
 
