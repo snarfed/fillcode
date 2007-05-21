@@ -1,13 +1,16 @@
-# -*- mode: python; fill-column: 12 -*-
-#
-# to make the tar.gz package:
-#
-# ln -s . fillcode
-# tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el \
-#   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
-# rm -f fillcode
+// # -*- mode: python; fill-column: 12 -*-
+// #
+// # to make the tar.gz package:
+// #
+// # ln -s . fillcode
+// # tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el \
+// #   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
+// # rm -f fillcode
 
-   asdf;
+asdf;
+
+foo(asdf, qwert());
+
 asdf;
    EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
 

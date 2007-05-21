@@ -126,7 +126,7 @@ it needs a chance to run (without narrowing!), which this advice provides."
            ; same with plus signs, to avoid pre/post-increments.
            "\\s-\\+[^+=]")
    "[|~^][^&|=]"      ; bitwise operators
-   "[([][^({[]"
+   "[([][^]})({[]"
    "\\s-{[^({[]"
    )
 
