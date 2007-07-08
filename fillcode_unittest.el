@@ -239,6 +239,8 @@
   (fillcode-test-in-mode "foo;baz;" "foo; baz;" 'java-mode)
   (fillcode-test "foo(bar++  baz++);" "foo(bar++ baz++);")
   (fillcode-test "foo(bar--  baz--);" "foo(bar-- baz--);")
+  (fillcode-test "foo <<bar<<baz;" "foo << bar << baz;")
+  (fillcode-test "foo << bar << baz;" "foo << bar << baz;")
   )
 
 (deftest keyword-whitespace

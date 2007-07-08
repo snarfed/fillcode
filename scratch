@@ -9,7 +9,22 @@
 
 asdf;
 
+foo(bar, baz);
+
+foo(bar.baz);
+
 foo(asdf, qwert());
+
+asdf << qwert << "qwer" << qwer;
+
+VLOG(4) << "Filter on " << filter.property(0).base().key() << ": "
+          << prop_ref.DebugString() << " "
+          << Query::Filter::Operator_Name(filter.op()) << " "
+          << f_ref.DebugString()
+          << ((passed) ? "passed!" : "failed!");
+
+out += "echo Waiting for replica in " + to +
+  " to finish applying updates from" + getFromDc() + ". Use msrepl_" + getName() + "_lowwatermarks [";
 
 asdf;
    EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
@@ -21,10 +36,11 @@ foo(x(y, z));
         const string &megastore_spec,
         gaia_client::GaiaExternalClient* gaia_client);
 
-  remote_datastore_->BeginTransaction(
-      rpc, updated_request, transaction,
-      NewCallback(Done<BeginTransactionRequest, Transaction>, rpc,
-                  updated_request, resp, callback));
+  remote_datastore_->BeginTransaction(rpc, updated_request, transaction,
+                                      NewCallback(Done<BeginTransactionRequest,
+                                                  Transaction>, rpc,
+                                                  updated_request, resp,
+                                                  callback));
 
 asdf {
         CHECK(found != handles_.end())

@@ -5,3 +5,13 @@
 - sometimes prefix arg doesn't work. (find example from work)
 
 - maybe keep sexp together only if it's not the first? and/or not the last?
+
+- out += "echo Waiting for replica in " + to + " to finish applying updates from"
+        + getFromDc() + ". Use msrepl_" +
+        getName() + "_lowwatermarks [";
+
+- VLOG(4) << "Filter on " << filter.property(0).base().key() << ": "
+          << prop_ref.DebugString() << " "
+          << Query::Filter::Operator_Name(filter.op()) << " "
+          << f_ref.DebugString()
+          << ((passed) ? "passed!" : "failed!");

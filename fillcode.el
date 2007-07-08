@@ -155,19 +155,20 @@ unfortunately absent."
 
 (defcustom fillcode-before-fill-point-re
   (build-re
-   '("<< " ">> "))  ; iostream operators
+   '("<<." ">>."))  ; iostream operators
 
   "A regexp of fill points that should be filled *before*, not after.
 By default, fillcode fills *after* fill points. When it fills at a fill point
 that matches this regexp, it will fill *before* the fill point instead.
 
+Each regexp match must include one character *after* the fill point ends.
 See `fillcode-fill-points' for more."
   :type '(repeat string)
   :group 'fillcode)
 
 (defcustom fillcode-start-token-re
   (build-re
-   '("([^)]" "<< "))  ; "=\n" "{[^}]" "<[^>]" "\\[^]]")
+   '("([^)]" "<<."))  ; "=\n" "{[^}]" "<[^>]" "\\[^]]")
   "A list of strings to start filling at.
 When fillcode is invoked, it first finds the beginning of the statement, then
 looks for one of these strings. It will not fill anywhere before these strings.
@@ -247,7 +248,9 @@ Intended to be set as `fill-paragraph-function'."
 
             ; normalize whitespace
             (goto-char start)
-            (save-excursion (fillcode-normalize-whitespace))
+            (save-excursion
+              (condition-case nil (forward-char) (end-of-buffer nil))
+              (fillcode-normalize-whitespace))
 
             ; fill until we hit the end of the statement
             (condition-case nil
@@ -505,7 +508,6 @@ point to next non-whitespace char."
 
    ; if we're before a non-special-punctuation fill point, add a space
    ((and (looking-at fill-point-re)
-         (not (looking-at fillcode-before-fill-point-re))
          (not (looking-at "[,;([{]\\|&[^&]\\||[^| ]")))
     (insert " ")
     (goto-char (match-end 0)))
