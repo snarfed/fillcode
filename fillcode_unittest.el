@@ -478,7 +478,18 @@ foo(bar +
   (fillcode-test "foo(bar) foo(baz,baj);" "foo(bar) foo(baz, baj);")
   (fillcode-test "foo(bar) foo(baz,baj);" "
 foo(bar) foo(baz,
-             baj);" 18))
+             baj);" 18)
+
+  ;; also, the recursion into and out of the expressions should be handled
+  ;; correctly, for both empty and non-empty sexps.
+  (fillcode-test "foo(bar() + baz() + baj);" "
+foo(bar() +
+    baz() +
+    baj);" 14)
+  (fillcode-test "foo(bar(123) + baz(456) + baj);" "
+foo(bar(123) +
+    baz(456) +
+    baj);" 17))
 
 (deftest non-fill-points
   ;; make sure that tokens aren't normalized or filled at other special tokens

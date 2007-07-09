@@ -15,16 +15,21 @@ foo(bar.baz);
 
 foo(asdf, qwert());
 
+x(qwert +
+  asdf +
+  qwert);
+
 asdf << qwert << "qwer" << qwer;
 
-asdf << qwert << asdf() << goo;
+asdf << foo(abc) << bar(123) << baz;
 
 VLOG(4) << Query::Filter::Operator_Name(filter.op()) << " "
         << f_ref.DebugString() << ((passed) ? "passed!" : "failed!");
 
 
 out += "echo Waiting for replica in " + to +
-  " to finish applying updates from" + getFromDc() + ". Use msrepl_" + getName() + "_lowwatermarks [";
+    " to finish applying updates from" + getFromDc() + ". Use msrepl_" +
+    getName() + "_lowwatermarks [";
 
 asdf;
    EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));

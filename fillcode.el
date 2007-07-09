@@ -305,10 +305,16 @@ whitespace), nil otherwise."
                    ; whitespace before the close paren char. in that case, it
                    ; might be an operator like >=, which is most definitely
                    ; *not* the end of a sexp.
-                   (not (member (fillcode-syntax (char-before)) '(\( \ ))))
+                   (not (member (fillcode-syntax (char-before)) '(?\( ?\ ))))
             (throw 'sexp-end t))
 
         ; recurse into sexps
+        ;
+        ; TODO: HACK: BUG: this is dangerously broken. it recurses into empty
+        ; parens, but the clause above *doesn't* return from them. sooner or
+        ; later, this is going to cause problems. if i fix the clause above,
+        ; it tickles something and causes problems right now, and i haven't
+        ; yet figured out why. still, caveat user/hacker.
         (when (eq ?\( (fillcode-syntax (char-after)))
           ; if this sexp extends beyond fill-column, and there's an earlier
           ; *non-open-paren* fill point we can use, fill at that fill point
