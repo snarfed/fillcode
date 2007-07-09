@@ -17,11 +17,11 @@ foo(asdf, qwert());
 
 asdf << qwert << "qwer" << qwer;
 
-VLOG(4) << "Filter on " << filter.property(0).base().key() << ": "
-          << prop_ref.DebugString() << " "
-          << Query::Filter::Operator_Name(filter.op()) << " "
-          << f_ref.DebugString()
-          << ((passed) ? "passed!" : "failed!");
+asdf << qwert << asdf() << goo;
+
+VLOG(4) << Query::Filter::Operator_Name(filter.op()) << " "
+        << f_ref.DebugString() << ((passed) ? "passed!" : "failed!");
+
 
 out += "echo Waiting for replica in " + to +
   " to finish applying updates from" + getFromDc() + ". Use msrepl_" + getName() + "_lowwatermarks [";

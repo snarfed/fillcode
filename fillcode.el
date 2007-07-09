@@ -301,15 +301,15 @@ whitespace), nil otherwise."
 
         ; close-paren char, so it's the end of a sexp. return!
         (when (and (eq ?\) (fillcode-syntax (char-after)))
-                   ; there must not be whitespace before the close paren char.
-                   ; otherwise, it might be an operator like >=, which is most
-                   ; definitely *not* the end of a sexp.
-                   (not (eq ?\  (fillcode-syntax (char-before)))))
+                   ; don't return if it's a set of empty parens, or if there's
+                   ; whitespace before the close paren char. in that case, it
+                   ; might be an operator like >=, which is most definitely
+                   ; *not* the end of a sexp.
+                   (not (member (fillcode-syntax (char-before)) '(\( \ ))))
             (throw 'sexp-end t))
 
         ; recurse into sexps
         (when (eq ?\( (fillcode-syntax (char-after)))
-
           ; if this sexp extends beyond fill-column, and there's an earlier
           ; *non-open-paren* fill point we can use, fill at that fill point
           (let ((next-fill-col (fillcode-fill-point-column-after-sexp)))
