@@ -1,11 +1,13 @@
-// # -*- mode: python; fill-column: 12 -*-
-// #
-// # to make the tar.gz package:
-// #
-// # ln -s . fillcode
-// # tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el \
-// #   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
-// # rm -f fillcode
+# -*- mode: python; fill-column: 12 -*-
+#
+# to make the tar.gz package:
+#
+# ln -s . fillcode
+# tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el \
+#   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
+# rm -f fillcode
+
+x in[asdf]
 
 asdf;
 
@@ -13,11 +15,15 @@ foo(bar, baz);
 
 foo(bar.baz);
 
-foo(asdf, qwert());
+foo(bar(), baz(baj), x);
 
-x(qwert +
-  asdf +
-  qwert);
+    group_table_->Lookup(job_data->job.get(), "",
+                         *(job_data->entity_group_key.get()),
+                         NewPermanentCallback(&EntityGroupEntity::NewInstance),
+                         group, CallDispatcher::get()->Wrap(*rpc, done));
+
+
+x(qwert = asdf = qwert);
 
 asdf << qwert << "qwer" << qwer;
 

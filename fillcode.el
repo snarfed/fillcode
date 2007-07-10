@@ -26,7 +26,7 @@
 ;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
 ;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(defconst fillcode-version "0.7")
+(defconst fillcode-version "0.8")
 
 (require 'cl)  ; for the case macro
 
@@ -175,15 +175,6 @@ looks for one of these strings. It will not fill anywhere before these strings.
 This allows it to leave prefix clauses, like template declarations, intact.
 
 Each regexp match must include one character *after* the fill point ends."
-  :type '(repeat string)
-  :group 'fillcode)
-
-(defcustom fillcode-expression-keywords
-  (list "if" "for" "while" "switch")
-  "A list of keywords that aren't functions. If these keywords appear before
-an open parenthesis, a space will be inserted before the open parenthesis. All
-other words, if they occur before open parentheses, are assumed to be function
-names, so whitespace between them and the open parenthesis will be removed."
   :type '(repeat string)
   :group 'fillcode)
 
@@ -375,15 +366,15 @@ If point is already on an interesting character, more forward just one
 character.
 
 Return t if it moved point at all, nil otherwise."
-  (unless (eolp)
-    (if (eq (skip-syntax-forward "w_ ") 0)
+  (unless (eobp)
+    (if (eq (skip-syntax-forward "w_ >") 0)
         (forward-char))
     t))
 
 (defun fillcode-forward-sexp ()
   "Call forward-sexp and catch any errors.
 Return t if it moved across an entire sexp, nil otherwise."
-  (unless (eolp)
+  (unless (eobp)
     (condition-case nil
         (progn
           (forward-sexp)
@@ -506,8 +497,8 @@ point to next non-whitespace char."
    ; and continue.
    ((looking-at "\\s-")
     (delete-horizontal-space)
-    (when (and (not (looking-at fill-point-re))
-               (not (looking-at "(")))
+    (when (or (eq ?\( (fillcode-syntax (char-after)))
+              (not (looking-at fill-point-re)))
       (fixup-whitespace)
       (if (looking-at "\\s-")  ; (*not* including newlines)
           (forward-char))))
@@ -517,20 +508,6 @@ point to next non-whitespace char."
          (not (looking-at "[,;([{]\\|&[^&]\\||[^| ]")))
     (insert " ")
     (goto-char (match-end 0)))
-
-   ; if we're on the open paren of an if, for, while, or switch condition,
-   ; insert a space.
-   ((and (looking-at "(")
-         (member t (mapcar (lambda (keyword)
-                        (save-excursion
-                         (condition-case nil
-                             (progn
-                               (backward-char (1+ (length keyword)))
-                               (looking-at (concat "\\Sw" keyword)))
-                           (error nil))))
-                     fillcode-expression-keywords)))
-    (fixup-whitespace)
-    (forward-char))
 
    ; if we're after a fill point, insert a space. (note that the fill point
    ; regexp ends at the first char *after* the operator.)

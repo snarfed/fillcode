@@ -2,7 +2,7 @@
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
-;; Copyright 2005-2006 Ryan Barrett <fillcode@ryanb.org>
+;; Copyright 2005-2007 Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; Unit tests for fillcode; run them with M-x eval-buffer, C-F10 or
 ;; ./elunit/runtests.sh.
@@ -209,7 +209,14 @@
   (fillcode-test "foo(bar, baz );" "foo(bar, baz);")
   (fillcode-test "foo( bar, baz);" "foo(bar, baz);")
   (fillcode-test "foo( bar, baz );" "foo(bar, baz);")
-  (fillcode-test "foo(bar\n);" "foo(bar);"))
+  (fillcode-test "foo(bar\n);" "foo(bar);")
+  ;; whitespace (or not) before open parens should be retained, not normalized.
+  (fillcode-test "foo (bar);" "foo (bar);")
+  (fillcode-test "foo[bar];" "foo[bar];")
+  (fillcode-test "foo [bar];" "foo [bar];")
+  (fillcode-test "foo{bar};" "foo{bar};")
+  (fillcode-test "foo {bar};" "foo {bar};")
+)
 
 (deftest comma-whitespace
   (fillcode-test "foo(bar,baz);" "foo(bar, baz);")
@@ -240,22 +247,7 @@
   (fillcode-test "foo(bar++  baz++);" "foo(bar++ baz++);")
   (fillcode-test "foo(bar--  baz--);" "foo(bar-- baz--);")
   (fillcode-test "foo <<bar<<baz;" "foo << bar << baz;")
-  (fillcode-test "foo << bar << baz;" "foo << bar << baz;")
-  )
-
-(deftest keyword-whitespace
-  (let ((fillcode-start-token-re ""))
-
-    (dolist (keyword '("if" "for" "while" "switch"))
-      (let ((golden (concat " " keyword " (bar) {")))
-        (fillcode-test golden)
-        (fillcode-test (concat " " keyword "(bar) {") golden)
-        (fillcode-test (concat " " keyword "  (bar) {") golden)
-        (fillcode-test (concat " asdf" keyword "(bar) {"))))
-
-    (fillcode-test "foo(bar) {")
-    (fillcode-test "foo (bar) {" "foo(bar) {")
-    (fillcode-test "foo   (bar) {" "foo(bar) {")))
+  (fillcode-test "foo << bar << baz;" "foo << bar << baz;"))
 
 (deftest classes
   (fillcode-test "class foo {};")
@@ -365,8 +357,8 @@ foo(bar baz baj,
 
 (deftest nested
   (fillcode-test "foo(x(y, z));" "foo(x(y, z));")
-  (fillcode-test "foo( x ( y ,z ));" "foo(x(y, z));")
-  (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x(y, z), a(b, c));")
+  (fillcode-test "foo( x ( y ,z ));" "foo(x (y, z));")
+  (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x (y, z), a(b, c));")
 
   ; try this one when the semicolon is just before fill-column (after
   ; filling), directly on it, and after it.
@@ -489,7 +481,15 @@ foo(bar() +
   (fillcode-test "foo(bar(123) + baz(456) + baj);" "
 foo(bar(123) +
     baz(456) +
-    baj);" 17))
+    baj);" 17)
+
+  ;; the fillcode() method recurses into all open parens, but doesn't return
+  ;; from all close parens. this causes problems. these are tests for those
+  ;; bugs, which are currently worked around instead of truly fixed. :/
+  (fillcode-test "foo(bar(), baz(baj), x);" "
+foo(bar(),
+    baz(baj),
+    x);" 13))
 
 (deftest non-fill-points
   ;; make sure that tokens aren't normalized or filled at other special tokens
