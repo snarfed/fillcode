@@ -7,7 +7,7 @@
 #   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
 # rm -f fillcode
 
-x in[asdf]
+x in [asdf]:
 
 asdf;
 
