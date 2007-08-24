@@ -394,7 +394,9 @@ safety, just uses the beginning of the line."
      ; non-whitespace character.
      (beginning-of-line)
      (re-search-forward "\\S-\\S-" nil t)  ; whitespace
-     (c-beginning-of-statement)
+     ; `c-beginning-of-statement-1' doesn't quite work. not sure why, haven't
+     ; investigated it yet. i should.
+     (c-beginning-of-statement 1)
      ; NB: use point-at-bol for xemacs compatibility. the emacs function is
      ; line-beginning-position; point-at-bol is just an alias. xemacs, however,
      ; only has point-at-bol. (same with point-at-eol/line-end-position.)

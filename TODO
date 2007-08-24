@@ -2,6 +2,8 @@
 
 - sometimes prefix arg doesn't work. (find example from work)
 
+- start using `looking-back' in emacs 22
+
 - maybe keep sexp together only if it's not the first? and/or not the last?
 
       raise datastore_errors.BadArgumentError(
@@ -90,3 +92,8 @@ MegastoreDatastore::MegastoreDatastore(const string &megastore_spec,
 
   if (!query->has_limit() || query->limit() > kDatastoreMaxResults)
     count_query.set_limit(kDatastoreMaxResults);
+
+      String[] propertyFields = {"string", "int64", "bool", "double",
+                                 "raw", "point",
+                                 "user"};
+ 
