@@ -4,7 +4,7 @@
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005-2007 Ryan Barrett <fillcode@ryanb.org>
 ;;
-;; This minor mode enhance the fill functions when in source code major modes,
+;; This minor mode enhances the fill functions when in source code major modes,
 ;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
 ;; fill function that intelligently fills some parts of source code, like
 ;; function calls and definitions, if the language mode's fill function
