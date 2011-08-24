@@ -4,10 +4,13 @@
 ;; http://snarfed.org/space/fillcode
 ;; Copyright 2005-2007 Ryan Barrett <fillcode@ryanb.org>
 ;;
-;; Unit tests for fillcode; run them with M-x eval-buffer, C-F10 or
+;; Unit tests for fillcode; run them with M-x eval-buffer and C-F10 or
 ;; ./elunit/runtests.sh.
 ;; For more information about fillcode, see fillcode.el.
 ;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
+;;
+;; TODO: elunit is deprecated in favor of ERT (included in emacs 24). port to
+;; ERT.
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
