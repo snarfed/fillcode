@@ -299,7 +299,14 @@ foo(bar='x',
   (fillcode-test "foo();")
   (fillcode-test " foo();")
   (fillcode-test "  foo();")
-  (fillcode-test "    foo();"))
+  (fillcode-test "    foo();")
+  (fillcode-test "    foo(bar, baz);" "
+    foo(bar,
+        baz);" 13)
+  (fillcode-test "    foo(bar, baz, baj);" "
+    foo(bar,
+        baz,
+        baj);" 13))
 
 (deftest simple-fill
   (fillcode-test "foo(bar, baz);" "

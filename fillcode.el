@@ -384,9 +384,13 @@ Return t if it moved across an entire sexp, nil otherwise."
        nil))))
 
 (defun fillcode-beginning-of-statement ()
-  "Return the start position of the statement that point is currently in. Uses
-the major mode's beginning-of-statement function, if it has one. Otherwise, for
-safety, just uses the beginning of the line."
+  "Return `point-at-bol' of the starting line of the current statement.
+
+Uses the major mode's beginning-of-statement function, if it has
+one. Otherwise, for safety, just uses the beginning of the line.
+
+Note that this function moves point!"
+  ; step 1: find the beginning of the statement
   (case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
      ; if we're at the beginning of the statement, `c-beginning-of-statement'
@@ -396,23 +400,24 @@ safety, just uses the beginning of the line."
      (re-search-forward "\\S-\\S-" nil t)  ; whitespace
      ; `c-beginning-of-statement-1' doesn't quite work. not sure why, haven't
      ; investigated it yet. i should.
-     (c-beginning-of-statement 1)
-     ; NB: use point-at-bol for xemacs compatibility. the emacs function is
-     ; line-beginning-position; point-at-bol is just an alias. xemacs, however,
-     ; only has point-at-bol. (same with point-at-eol/line-end-position.)
-     (point-at-bol))
+     (c-beginning-of-statement 1))
 
     ((python-mode)
      (save-excursion
        (if (functionp 'py-goto-statement-at-or-above)
            (py-goto-statement-at-or-above)
-         (python-beginning-of-statement))
-       (point)))
+         (python-beginning-of-statement))))
 
-    ; `c-beginning-of-statement' might be a good fallback for unknown
+    ; `c-beginning-of-statement' could be a good fallback for unknown
     ; languages, but it occasionally fails badly, e.g. in `perl-mode'.
-    (otherwise
-     (point-at-bol))))  ; default
+    (otherwise nil))
+
+   ; step 2: return the beginning of the line
+   ;
+   ; NB: use point-at-bol for xemacs compatibility. the emacs function is
+   ; line-beginning-position; point-at-bol is just an alias. xemacs, however,
+   ; only has point-at-bol. (same with point-at-eol/line-end-position.)
+   (point-at-bol))
 
 
 (defun fillcode-end-of-statement ()
