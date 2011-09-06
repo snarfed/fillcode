@@ -39,7 +39,9 @@
   "(\\(fillcode-test\\|fillcode-test-in-mode\\)\\([) \t\n]\\)")
 
 (require 'fillcode)
-(require 'python-mode)
+(condition-case nil
+    (require 'python)
+  (file-error (require 'python-mode)))
 (require 'cc-mode)  ; includes c++-mode and java-mode
 
 (global-set-key [(control f10)]
@@ -182,6 +184,7 @@
     (funcall mode))
   (setq indent-tabs-mode nil
         py-indent-offset 4
+        python-indent 4
         c-basic-offset 4)
   (fillcode-mode))
 
@@ -218,8 +221,7 @@
   (fillcode-test "foo[bar];" "foo[bar];")
   (fillcode-test "foo [bar];" "foo [bar];")
   (fillcode-test "foo{bar};" "foo{bar};")
-  (fillcode-test "foo {bar};" "foo {bar};")
-)
+  (fillcode-test "foo {bar};" "foo {bar};"))
 
 (deftest comma-whitespace
   (fillcode-test "foo(bar,baz);" "foo(bar, baz);")
@@ -240,6 +242,7 @@
   (fillcode-test "foo(\n  bar\n  ,\n  baz\n  );" "foo(bar, baz);"))
 
 (deftest operator-whitespace
+  (fillcode-test "foo(bar==baz);" "foo(bar == baz);")
   (fillcode-test "foo(bar +baz);" "foo(bar + baz);")
   (fillcode-test "foo(bar  -  baz);" "foo(bar - baz);")
   (fillcode-test "foo(bar /baz);" "foo(bar / baz);")
@@ -251,6 +254,17 @@
   (fillcode-test "foo(bar--  baz--);" "foo(bar-- baz--);")
   (fillcode-test "foo <<bar<<baz;" "foo << bar << baz;")
   (fillcode-test "foo << bar << baz;" "foo << bar << baz;"))
+
+(deftest no-whitespace-around-single-equals-operator
+  (fillcode-test "foo(bar=1);")
+  (fillcode-test "foo(bar='x');")
+  (fillcode-test "foo(bar=\"x\");")
+  (fillcode-test "foo(bar=1, baz=2);" "
+foo(bar=1,
+    baz=2);" 11)
+  (fillcode-test "foo(bar='x', baz='y');" "
+foo(bar='x',
+    baz='y');" 11))
 
 (deftest classes
   (fillcode-test "class foo {};")
@@ -330,6 +344,10 @@ foo(bar, baz,
 foo(bar,
     bazbaz,
     baj);" 10)
+
+  (fillcode-test "foofoofoo(bar, baz);" "
+foofoofoo(bar,
+          baz);" 15)
 
   ; filling at baz brings it to the same fill column as the open parenthesis,
   ; which doesn't help any. instead, fill it to c-basic-offset past the last

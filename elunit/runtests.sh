@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Run the fillcode unit tests against both gnu emacs and xemacs.
+# Run the fillcode unit tests against different versions of GNU Emacs and XEmacs.
 #
 # This script assumes that it's running inside a directory hierarchy that
 # looks like this:
@@ -16,7 +16,7 @@ TESTED=0
 
 cd $DIR
 
-for prog in emacs21 emacs22 xemacs; do
+for prog in emacs21 emacs22 emacs23 xemacs21; do
     if which $prog >& /dev/null; then
         $prog -version 2> /dev/null | head -n 2
         exec $prog --batch -l "fillcode_unittest.el" \

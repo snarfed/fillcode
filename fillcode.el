@@ -479,10 +479,11 @@ point to next non-whitespace char."
 ;;   (edebug)
   (let ((fill-point-re (build-re fillcode-fill-points)))
   (cond
-   ; if we're in a string literal or comment, add a space before it, then skip
-   ; to the end of it
+   ; if we're in a string literal or comment, add a space before it (unless this
+   ; is a keyword arg in a function call, e.g. in python), then skip to the end of it.
    ((fillcode-in-literal)
-    (when (save-excursion (backward-char) (not (fillcode-in-literal)))
+    (when (save-excursion (backward-char)
+                          (and (not (fillcode-in-literal)) (not (looking-at "="))))
       (fixup-whitespace)
       (forward-char))
     ; TODO: maybe goto-char (cdr c-literal-limits) here would be faster?
