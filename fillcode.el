@@ -2,7 +2,7 @@
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
-;; Copyright 2005-2007 Ryan Barrett <fillcode@ryanb.org>
+;; Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; This minor mode enhances the fill functions when in source code major modes,
 ;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
@@ -12,19 +12,7 @@
 ;;
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 2, or (at your option)
-;; any later version.
-;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-;;
-;; A copy of the GNU General Public License can be obtained at
-;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
-;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;; This code is in the public domain.
 
 (defconst fillcode-version "0.8")
 

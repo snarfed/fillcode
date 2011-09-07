@@ -2,7 +2,7 @@
 ;;
 ;; Fillcode
 ;; http://snarfed.org/space/fillcode
-;; Copyright 2005-2007 Ryan Barrett <fillcode@ryanb.org>
+;; Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; Unit tests for fillcode; run them with M-x eval-buffer and C-F10 or
 ;; ./elunit/runtests.sh.
@@ -12,19 +12,7 @@
 ;; TODO: elunit is deprecated in favor of ERT (included in emacs 24). port to
 ;; ERT.
 ;;
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 2, or (at your option)
-;; any later version.
-;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-;;
-;; A copy of the GNU General Public License can be obtained at
-;; http://www.gnu.org/licenses/gpl.html or from the Free Software Foundation,
-;; Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;; This code is in the public domain.
 
 
 (dolist (dir (list "." "elunit" (concat (getenv "HOME") "/bin")))
