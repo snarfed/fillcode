@@ -129,7 +129,7 @@
                             (string-replace expected ";\\|{\\|}" "")))))
       (setq fill-column (if fill-col fill-col 80))
       (fillcode-fill-paragraph prefix-arg)
-      (assert-equal lineno expected (buffer-string)))))
+      (assert-equal lineno expected (buffer-string) (format "(in %s)" mode)))))
 
 ; replace all occurrences of regexp in string. returns the result string.
 (defun string-replace (string regexp replacement)
