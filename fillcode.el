@@ -1,7 +1,7 @@
 ;;; fillcode.el --- Fillcode minor mode
 ;;
 ;; Fillcode
-;; http://snarfed.org/space/fillcode
+;; http://snarfed.org/fillcode
 ;; Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; This minor mode enhances the fill functions when in source code major modes,
@@ -13,6 +13,14 @@
 ;; M-x fillcode-mode toggles fillcode-mode on and off in the current buffer.
 ;;
 ;; This code is in the public domain.
+;;
+;; Changelog:
+;; 0.8 2011/9/6:
+;; - bug fix: don't insert a space between the single equals operator and string
+;;   literals, e.g. for python keyword arguments in functions
+;; - bug fix: fix indentation for subsequent lines in indented blocks in python
+;; 0.7.1 2007/08/24 (and before):
+;; TODO
 
 (defconst fillcode-version "0.8")
 
@@ -35,7 +43,7 @@ calls and definitions, in many languages.
 
 To see what version of fillcode you are running, enter `\\[fillcode-version]'.
 
-For more information, see http://snarfed.org/space/fillcode"
+For more information, see http://snarfed.org/fillcode"
  nil         ;; initial value
  " Fillcode" ;; mode line indicator
  nil)        ;; keymap

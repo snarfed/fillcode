@@ -1,7 +1,7 @@
 ;; fillcode_unittest.el - Unit tests for the fillcode minor mode
 ;;
 ;; Fillcode
-;; http://snarfed.org/space/fillcode
+;; http://snarfed.org/fillcode
 ;; Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; Unit tests for fillcode; run them with M-x eval-buffer and C-F10 or
