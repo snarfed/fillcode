@@ -1,0 +1,56 @@
+# Bazaar merge directive format 2 (Bazaar 0.90)
+# revision_id: ryanb@purgatory-20111001204821-fv5s4vthocfpzz7e
+# target_branch: bzr://bzr.savannah.gnu.org/emacs/trunk/
+# testament_sha1: 405f8b72d8bca3a91961477c6505ba0d1c3e077e
+# timestamp: 2011-10-01 13:49:23 -0700
+# base_revision_id: julien@danjou.info-20111001132215-ip6o7qyy6uu6h7lk
+# 
+# Begin patch
+=== modified file 'lisp/dirtrack.el'
+--- lisp/dirtrack.el	2011-04-19 13:44:55 +0000
++++ lisp/dirtrack.el	2011-10-01 20:48:21 +0000
+@@ -243,8 +243,9 @@
+           (if (not (> (length prompt-path) 0))
+               (dirtrack-debug-message "Match is empty string")
+             ;; Transform prompts into canonical forms
+-            (setq prompt-path (funcall dirtrack-directory-function
+-                                       prompt-path)
++            (setq orig-prompt-path (funcall dirtrack-directory-function
++                                            prompt-path)
++                  prompt-path (shell-prefixed-directory-name orig-prompt-path)
+                   current-dir (funcall dirtrack-canonicalize-function
+                                        current-dir))
+             (dirtrack-debug-message
+@@ -257,8 +258,9 @@
+               ;; It's possible that Emacs will think the directory
+               ;; won't exist (eg, rlogin buffers)
+               (if (file-accessible-directory-p prompt-path)
+-                  ;; Change directory
+-                  (and (shell-process-cd prompt-path)
++                  ;; Change directory. shell-process-cd adds the prefix, so we
++                  ;; need to give it the original (un-prefixed) path.
++                  (and (shell-process-cd orig-prompt-path)
+                        (run-hooks 'dirtrack-directory-change-hook)
+                        (dirtrack-debug-message
+                         (format "Changing directory to %s" prompt-path)))
+
+# Begin bundle
+IyBCYXphYXIgcmV2aXNpb24gYnVuZGxlIHY0CiMKQlpoOTFBWSZTWXpkxBUAAZ7fgABRUGf//1oA
+EAC////wUAP+nYqraojQEMkmmkNkhtTQ2ppoCeIBGCaDAAAAADQaANANAMkJ6AqeaEyJp6hoAAA0
+GMAAAAANBoA0A0AkkEDQE0yaCnpPAk8qep6mmA0fjtKD319hsMb2hN7xMX6WoKdjmzfbCi5IHCY8
+Pc63pRdMgRBh5DwvA91cSLKIpgZJra2hKldfkGLx3u8S08R5NC1RrE1UblhfljGxUQx5srdNoUgO
+yo7EM5lwu+exMPfvA8gPXzvWI5pv3A7tsi6uZcRZcd5Wb2N2SWh2XHJk4ungkzMg7AzCKUDrmT0D
+07zvYinqeaZ8ZzBlwmFM/jOgh/nkfDAz0ggpESTk5OhjNKKXea7dZUKHufdcJRwVeTLp3wMwiTqr
+ZsyhsUGETJ4nchZ2mw/chcXqGB+8anpWYGyoSqu8pB1IWRCE1Zg0X5sUSK4qwL8Chy1Uxg6poiyq
+KTaVjyqEOQoyuirYmE+N88pLkYjxP6Dof6mcItGq9mcy7OAaKwGOLzWd/NcVyVJVoT312HyHJ5dd
+cqfgVy7LNW5TVScKfaVPhNBQNFzJOOWho5zehRgtgtiIOFtBisU4qGSOZHFLIzE1YiUUjUqMSEMk
+TqOQ7Ddwc1MguS7vUs1wJklQoS/TP7NZQ4O/pAYNZkc+T+fqHtZLfXEI2eZOIW6wFeMWc24SLMzh
+ESnQldllEg00ziXYHk89AZDkYVkWYhlZRKs+lhx6c/IE/zxQ3mT4UJq3MwX89pCnbjQp00F6L+F5
+uNatQeKRotRktDzxHPZz1bt4ukEyMz9RDfibNxcra5FSsAmv8DDXJ2CF1S9TS+16JKBHh3mUa01+
+VCcj6v1lBUUM9Od79uW/mEAzAReMVosS45K9MwqKOF3rhupArBxt1ib28JVL0zSo9EQp86JSbunb
+g/UC16HCvC9xYWXfxN1UeRMGGagYfTuFmSz2aof9TiF6uS7Bhb56X4BTNkrVoJ6fmGyrLOYgmW9w
+VA9wPVXBe0/EqxDrSyA8236F4lMYvfaoUOBVrJIFKO15KSqIkAfFwPiyjgp0RZMstMXJ9C4q48Cb
+QZEUeHFIXBSvA9Cxw+E61ipUYsyuHMmgT0mohEZl9mOVFCOqVoreK4LTYoBcDfXBYBfOjXb8oGKU
+vStKkrZD2qjFpA6ZkL6nzGr69Lqdpw8ik+FnSrcxv1a4MzagfUrYQqCgVU1sdNaIu/0uydRIvnKW
+Q87CdPKsxmkFc4oDmZ1s4TQ1PcoS69VWtqvx38lx0Ys1GxLqoC3K7BYB4FfhrJ7lempChWgvVN8M
+lu/K9RbYCGIPAXckU4UJB6ZMQVA=
