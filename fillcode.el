@@ -15,6 +15,8 @@
 ;; This code is in the public domain.
 ;;
 ;; Changelog:
+;; 0.9 2012/4/24:
+;; - minor fix to allow byte compiling. no functional changes.
 ;; 0.8 2011/9/6:
 ;; - bug fix: don't insert a space between the single equals operator and string
 ;;   literals, e.g. for python keyword arguments in functions
@@ -22,7 +24,7 @@
 ;; 0.7.1 2007/08/24 (and before):
 ;; TODO
 
-(defconst fillcode-version "0.8")
+(defconst fillcode-version "0.9")
 
 (require 'cl)  ; for the case macro
 
