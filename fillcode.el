@@ -27,7 +27,7 @@
 (require 'cl)  ; for the case macro
 
 (require 'cc-bytecomp)  ; for c-in-literal and c-literal-limits
-(cc-require 'cc-engine)
+(require 'cc-engine)
 
 ; gnu emacs supports optional forms as the last arguments to
 ; define-minor-mode; they're evaluated when the minor mode is enabled or
