@@ -16,7 +16,8 @@
 ;;
 ;; Changelog:
 ;; 0.9 2012/4/24:
-;; - minor fix to allow byte compiling. no functional changes.
+;; - minor fix to allow byte compiling. no functional changes. (thanks Jonathan
+;;   Tomer!)
 ;; 0.8 2011/9/6:
 ;; - bug fix: don't insert a space between the single equals operator and string
 ;;   literals, e.g. for python keyword arguments in functions
