@@ -45,7 +45,7 @@ foo(x(y, z));
     EXPECT_EQ("kind-ancestor-manyorders-manyfilters", trivial_->LabelQuery(query));
     MegastoreDatastore::MegastoreDatastore(
         const string &megastore_spec,
-        gaia_client::GaiaExternalClient* gaia_client);
+        client::ExternalClient* client);
 
   remote_datastore_->BeginTransaction(rpc, updated_request, transaction,
                                       NewCallback(Done<BeginTransactionRequest,
