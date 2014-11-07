@@ -405,7 +405,9 @@ Note that this function moves point!"
      (save-excursion
        (if (functionp 'py-goto-statement-at-or-above)
            (py-goto-statement-at-or-above)
-         (python-beginning-of-statement))))
+         (if (functionp 'python-beginning-of-statement)
+             (python-beginning-of-statement)
+           (python-nav-beginning-of-statement)))))
 
     ; `c-beginning-of-statement' could be a good fallback for unknown
     ; languages, but it occasionally fails badly, e.g. in `perl-mode'.
@@ -435,12 +437,15 @@ for safety, just uses the end of the line."
 
       ((python-mode)
          (let ((start (point)))
-           (if (if (functionp 'py-goto-statement-below)
-                   (py-goto-statement-below)
-                 (python-next-statement))
-               (search-backward ")" start 'p)
+           (if (functionp 'python-nav-end-of-statement)
+               (python-nav-end-of-statement)
+             (if (functionp 'py-goto-statement-below)
+                 (py-goto-statement-below)
+               (if (functionp 'python-next-statement)
+                   (python-next-statement)))
+             (search-backward ")" start 'p)
              (condition-case nil (forward-char) (error nil))))))
-  
+
       ; `c-end-of-statement' might be a good fallback for unknown languages,
       ; but it occasionally fails badly, e.g. in `perl-mode'.
     (point-at-eol)))
@@ -638,8 +643,12 @@ return non-nil if we're past the first char of the start token, so
 `fillcode-in-literal' returns non-nil instead."
   (let ((in-literal-fn
          (case major-mode
-           ((python-mode) (if (functionp 'py-in-literal)
-                              'py-in-literal 'python-in-string/comment))
+           ((python-mode)
+            (if (functionp 'py-in-literal) 'py-in-literal
+              (if (functionp 'python-in-string/comment) 'python-in-string/comment
+                (if (functionp 'python-syntax-comment-or-string-p)
+                    'python-syntax-comment-or-string-p
+                  t))))
            (otherwise 'c-in-literal))))
 
     ; if the major mode says point *or* the char *after* point is in a literal,
