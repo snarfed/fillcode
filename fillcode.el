@@ -1,9 +1,10 @@
-;;; fillcode.el --- Fillcode minor mode
+;;; fillcode.el --- Fill (wrap) function calls and expressions in source code
 ;;
-;; Fillcode
-;; http://snarfed.org/fillcode
-;; Ryan Barrett <fillcode@ryanb.org>
+;; Version: 1.0
+;; Author: Ryan Barrett <fillcode@ryanb.org>
+;; URL: http://snarfed.org/fillcode
 ;;
+;; Commentary:
 ;; This minor mode enhances the fill functions when in source code major modes,
 ;; such as c-mode, java-mode, and python-mode. Specifically, it provides a new
 ;; fill function that intelligently fills some parts of source code, like
@@ -15,6 +16,9 @@
 ;; This code is in the public domain.
 ;;
 ;; Changelog:
+;; 1.0 2014/11/15:
+;; - compatibility update for emacs 24.4's python mode
+;; - publish package to MELPA
 ;; 0.9 2012/4/24:
 ;; - minor fix to allow byte compiling. no functional changes. (thanks Jonathan
 ;;   Tomer!)
@@ -25,7 +29,7 @@
 ;; 0.7.1 2007/08/24 (and before):
 ;; TODO
 
-(defconst fillcode-version "0.9")
+(defconst fillcode-version "1.0")
 
 (require 'cl)  ; for the case macro
 
