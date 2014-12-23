@@ -31,8 +31,6 @@
 
 (defconst fillcode-version "1.0")
 
-(require 'cl)  ; for the case macro
-
 (require 'cc-bytecomp)  ; for c-in-literal and c-literal-limits
 (require 'cc-engine)
 
@@ -394,7 +392,7 @@ one. Otherwise, for safety, just uses the beginning of the line.
 
 Note that this function moves point!"
   ; step 1: find the beginning of the statement
-  (case major-mode
+  (cl-case major-mode
     ((c-mode c++-mode java-mode objc-mode perl-mode)
      ; if we're at the beginning of the statement, `c-beginning-of-statement'
      ; will go to the *previous* statement. so, first move past a
@@ -433,7 +431,7 @@ for safety, just uses the end of the line."
     (if (equal ?{ (char-before))
         (backward-char))
 
-    (case major-mode
+    (cl-case major-mode
       ((c-mode c++-mode java-mode objc-mode perl-mode)
        ; c-end-of-statement mostly does the right thing with if conditions, for
        ; statements, {...} blocks, and statements that end with semicolon.
@@ -646,7 +644,7 @@ literal, so they return nil if point is on the start token. We want them to
 return non-nil if we're past the first char of the start token, so
 `fillcode-in-literal' returns non-nil instead."
   (let ((in-literal-fn
-         (case major-mode
+         (cl-case major-mode
            ((python-mode)
             (if (functionp 'py-in-literal) 'py-in-literal
               (if (functionp 'python-in-string/comment) 'python-in-string/comment
@@ -670,7 +668,7 @@ return non-nil if we're past the first char of the start token, so
 (defun fillcode-get-mode-indent-offset ()
   "Returns the indent offset, ie the number of columns to indent, in the
 current mode."
-  (case major-mode
+  (cl-case major-mode
     ((python-mode) py-indent-offset)
     (otherwise c-basic-offset)))
 
