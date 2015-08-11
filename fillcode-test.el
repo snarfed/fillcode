@@ -1,7 +1,7 @@
-;; fillcode_unittest.el - Unit tests for the fillcode minor mode
+;; fillcode-test.el - Unit tests for the fillcode minor mode
 ;;
 ;; Fillcode
-;; http://snarfed.org/fillcode
+;; https://snarfed.org/fillcode
 ;; Ryan Barrett <fillcode@ryanb.org>
 ;;
 ;; Unit tests for fillcode; run them with M-x eval-buffer and C-F10 or
@@ -36,7 +36,7 @@
   (lambda ()
     (interactive)
     (save-some-buffers)
-    (elunit-run '("fillcode_unittest.el"))))
+    (elunit-run '("fillcode-test.el"))))
 
 (defun find-test (tests test-symbol)
   (if tests
@@ -53,7 +53,7 @@
   (interactive "STest: ")
   (save-some-buffers)
   (set-buffer (get-buffer-create "*Elunit Result*"))
-  (-elunit-load-test-suite '("fillcode_unittest.el"))
+  (-elunit-load-test-suite '("fillcode-test.el"))
   (erase-buffer)
   (let ((test (find-test elunit-tests test-symbol)))
     (if test

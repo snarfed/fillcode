@@ -1,8 +1,8 @@
 ;;; fillcode.el --- Fill (wrap) function calls and expressions in source code
 ;;
-;; Version: 1.0
+;; Version: 1.0.1
 ;; Author: Ryan Barrett <fillcode@ryanb.org>
-;; URL: http://snarfed.org/fillcode
+;; URL: https://snarfed.org/fillcode
 ;;
 ;; Commentary:
 ;; This minor mode enhances the fill functions when in source code major modes,
@@ -16,6 +16,9 @@
 ;; This code is in the public domain.
 ;;
 ;; Changelog:
+;; 1.0.1 2015/08/11:
+;; - drop emacs-cl dependence by porting cl-case to cond
+;; - publish package to MELPA, for real this time
 ;; 1.0 2014/11/15:
 ;; - compatibility update for emacs 24.4's python mode
 ;; - publish package to MELPA
@@ -48,7 +51,7 @@ calls and definitions, in many languages.
 
 To see what version of fillcode you are running, enter `\\[fillcode-version]'.
 
-For more information, see http://snarfed.org/fillcode"
+For more information, see https://snarfed.org/fillcode"
  nil         ;; initial value
  " Fillcode" ;; mode line indicator
  nil)        ;; keymap
