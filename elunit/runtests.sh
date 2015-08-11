@@ -16,7 +16,7 @@ TESTED=0
 
 cd $DIR
 
-for prog in emacs21 emacs22 emacs23 xemacs21 emacs-24.4; do
+for prog in emacs21 emacs22 emacs23 emacs-24.5 xemacs21; do
     if which $prog >& /dev/null; then
         $prog -version 2> /dev/null | head -n 2
         # note princ instead of message below. we don't want message to
@@ -27,7 +27,7 @@ for prog in emacs21 emacs22 emacs23 xemacs21 emacs-24.4; do
                            (elunit-run (list \"fillcode_unittest.el\"))
                            (switch-to-buffer \"*Elunit Result*\")
                            (princ (buffer-string)))" \
-            2>&1 | egrep -v 'Using the CPython shell|Mark set|^Loading'
+            2>&1 | egrep -v "Using the CPython shell|Mark set|^Loading|^Can't guess"
         TESTED=1
     fi
 done

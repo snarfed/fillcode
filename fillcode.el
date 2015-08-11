@@ -68,7 +68,7 @@ For more information, see http://snarfed.org/fillcode"
 
  (if fillcode-mode
      ; this runs when fillcode is enabled...
-     (progn 
+     (progn
        (if (not (eq fill-paragraph-function 'fillcode-fill-paragraph))
            (setq fillcode-wrapped-fill-function fill-paragraph-function)
          (setq fillcode-wrapped-fill-function nil))
@@ -281,7 +281,6 @@ whitespace), nil otherwise."
       ; recursive so we can easily determine, after we've finished with a
       ; subexpression, whether we filled inside it.
       (while (fillcode-forward)
-;;         (edebug)
         ; skip literals
         (while (fillcode-in-literal)
           (forward-char))
@@ -392,8 +391,8 @@ one. Otherwise, for safety, just uses the beginning of the line.
 
 Note that this function moves point!"
   ; step 1: find the beginning of the statement
-  (cl-case major-mode
-    ((c-mode c++-mode java-mode objc-mode perl-mode)
+  (cond
+    ((memq major-mode '(c-mode c++-mode java-mode objc-mode perl-mode))
      ; if we're at the beginning of the statement, `c-beginning-of-statement'
      ; will go to the *previous* statement. so, first move past a
      ; non-whitespace character.
@@ -403,17 +402,16 @@ Note that this function moves point!"
      ; investigated it yet. i should.
      (c-beginning-of-statement 1))
 
-    ((python-mode)
+    ((eq major-mode 'python-mode)
      (save-excursion
        (if (functionp 'py-goto-statement-at-or-above)
            (py-goto-statement-at-or-above)
          (if (functionp 'python-beginning-of-statement)
              (python-beginning-of-statement)
-           (python-nav-beginning-of-statement)))))
+           (python-nav-beginning-of-statement))))))
 
     ; `c-beginning-of-statement' could be a good fallback for unknown
     ; languages, but it occasionally fails badly, e.g. in `perl-mode'.
-    (otherwise nil))
 
    ; step 2: return the beginning of the line
    ;
@@ -431,13 +429,13 @@ for safety, just uses the end of the line."
     (if (equal ?{ (char-before))
         (backward-char))
 
-    (cl-case major-mode
-      ((c-mode c++-mode java-mode objc-mode perl-mode)
+    (cond
+      ((memq major-mode '(c-mode c++-mode java-mode objc-mode perl-mode))
        ; c-end-of-statement mostly does the right thing with if conditions, for
        ; statements, {...} blocks, and statements that end with semicolon.
        (c-end-of-statement))
 
-      ((python-mode)
+      ((eq major-mode 'python-mode)
          (let ((start (point)))
            (if (functionp 'python-nav-end-of-statement)
                (python-nav-end-of-statement)
@@ -487,7 +485,6 @@ Specifically, no spaces before commas or open parens or after close parens,
 one space after commas, one space before and after arithmetic operators.
 Except string literals and comments, they're left untouched. Then advance
 point to next non-whitespace char."
-;;   (edebug)
   (let ((fill-point-re (build-re fillcode-fill-points)))
   (cond
    ; if we're in a string literal or comment, add a space before it (unless this
@@ -506,7 +503,7 @@ point to next non-whitespace char."
    ; if we're at the end of the line, pull up the next line
    ((eolp)
     (delete-indentation t))
- 
+
    ; if we're on whitespace, delete it. if that brings us to a fill point,
    ; fall down to the logic below. otherwise, normalize to exactly one space
    ; and continue.
@@ -527,7 +524,7 @@ point to next non-whitespace char."
    ; if we're after a fill point, insert a space. (note that the fill point
    ; regexp ends at the first char *after* the operator.)
    ((and (save-excursion
-           (progn 
+           (progn
              (condition-case nil (forward-char) (error nil))
              ; use point-at-bol for xemacs compatibility
              (re-search-backward fill-point-re (point-at-bol) t)))
@@ -644,14 +641,13 @@ literal, so they return nil if point is on the start token. We want them to
 return non-nil if we're past the first char of the start token, so
 `fillcode-in-literal' returns non-nil instead."
   (let ((in-literal-fn
-         (cl-case major-mode
-           ((python-mode)
-            (if (functionp 'py-in-literal) 'py-in-literal
-              (if (functionp 'python-in-string/comment) 'python-in-string/comment
-                (if (functionp 'python-syntax-comment-or-string-p)
-                    'python-syntax-comment-or-string-p
-                  t))))
-           (otherwise 'c-in-literal))))
+         (if (eq major-mode 'python-mode)
+             (if (functionp 'py-in-literal) 'py-in-literal
+               (if (functionp 'python-in-string/comment) 'python-in-string/comment
+                 (if (functionp 'python-syntax-comment-or-string-p)
+                     'python-syntax-comment-or-string-p
+                   t)))
+           'c-in-literal)))
 
     ; if the major mode says point *or* the char *after* point is in a literal,
     ; or if two chars after point is a comment, then we're in a literal.
@@ -668,9 +664,9 @@ return non-nil if we're past the first char of the start token, so
 (defun fillcode-get-mode-indent-offset ()
   "Returns the indent offset, ie the number of columns to indent, in the
 current mode."
-  (cl-case major-mode
-    ((python-mode) py-indent-offset)
-    (otherwise c-basic-offset)))
+  (if (eq major-mode 'python-mode)
+      py-indent-offset
+    c-basic-offset))
 
 (defun fillcode-get-last-line-indent-offset ()
   "Returns the indent offset, ie the column of the first non-whitespace

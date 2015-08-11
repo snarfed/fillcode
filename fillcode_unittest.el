@@ -46,7 +46,7 @@
     nil))  ; base case
 
 (global-set-key [(control f8)] 'run-test)
-(global-set-key [(control f9)] 
+(global-set-key [(control f9)]
                 (lambda () (interactive) (run-test fillcode-last-test)))
 
 (defun run-test (test-symbol)
