@@ -4,27 +4,14 @@
 ;; https://snarfed.org/fillcode
 ;; Ryan Barrett <fillcode@ryanb.org>
 ;;
-;; Unit tests for fillcode; run them with M-x eval-buffer and C-F10 or
-;; ./elunit/runtests.sh.
+;; Unit tests for fillcode; run them with M-x eval-buffer and M-x ert.
 ;; For more information about fillcode, see fillcode.el.
-;; For more information about elunit, see http://lostway.org/~tko/elisp/elunit/
-;;
-;; TODO: elunit is deprecated in favor of ERT (included in emacs 24). port to
-;; ERT.
 ;;
 ;; This code is in the public domain.
 
-
-(dolist (dir (list "." "elunit" (concat (getenv "HOME") "/bin")))
+(dolist (dir (list "." (concat (getenv "HOME") "/bin")))
   (if (not (member dir load-path))
       (setq load-path (cons dir load-path))))
-
-(require 'elunit)
-;; override so that elunit instruments the fillcode-test calls with line #s
-;; (defconst elunit-assertion-funcs '(fillcode-test))
-;; (defconst elunit-assertions-regexp (-elunit-make-assertion-func-regexp))
-(defconst elunit-assertions-regexp
-  "(\\(fillcode-test\\|fillcode-test-in-mode\\)\\([) \t\n]\\)")
 
 (require 'fillcode)
 (condition-case nil
@@ -32,35 +19,7 @@
   (file-error (require 'python-mode)))
 (require 'cc-mode)  ; includes c++-mode and java-mode
 
-(global-set-key [(control f10)]
-  (lambda ()
-    (interactive)
-    (save-some-buffers)
-    (elunit-run '("fillcode-test.el"))))
-
-(defun find-test (tests test-symbol)
-  (if tests
-      (if (equal test-symbol (car (car tests)))
-          (car tests)
-        (find-test (cdr tests) test-symbol))  ; recursive step
-    nil))  ; base case
-
-(global-set-key [(control f8)] 'run-test)
-(global-set-key [(control f9)]
-                (lambda () (interactive) (run-test fillcode-last-test)))
-
-(defun run-test (test-symbol)
-  (interactive "STest: ")
-  (save-some-buffers)
-  (set-buffer (get-buffer-create "*Elunit Result*"))
-  (-elunit-load-test-suite '("fillcode-test.el"))
-  (erase-buffer)
-  (let ((test (find-test elunit-tests test-symbol)))
-    (if test
-        (progn (apply '-elunit-insert-result (-elunit-run-test (list test)))
-               (-elunit-show-result)
-               (setq fillcode-last-test test-symbol))
-      (message "Test %s not found." test-symbol))))
+(require 'ert)
 
 ; test harness. runs fillcode on the given input in a temp buffer in python,
 ; java, and c++ major modes. appends semicolons in java-mode and open curly
@@ -77,28 +36,28 @@
 ; `fill-paragraph-function'.
 ;
 ; returns the value returned from fillcode.
-(defun fillcode-test (lineno input &optional expected fill-col prefix-arg)
+(defun fillcode-test (input &optional expected fill-col prefix-arg)
   (dolist (mode '(java-mode c++-mode python-mode))
-    ;; initial space is to escape elunit-assertions-regexp (see above)
-    ( fillcode-test-in-mode lineno input expected mode fill-col prefix-arg)))
+    (fillcode-test-in-mode input expected mode fill-col prefix-arg)))
 
 
 ;; set up the buffer and mode, then run and check fillcode with point at the
 ;; beginning, end, and middle of the first statement
-(defun fillcode-test-in-mode (lineno input expected mode
+(defun fillcode-test-in-mode (input expected mode
                               &optional fill-col prefix-arg)
   (dolist (point-fn (list
                      'beginning-of-buffer
                      'first-semicolon-or-open-brace
                      (lambda () (first-semicolon-or-open-brace)
                        (goto-char (max (point-min) (- (point) 4))))))
-    (fillcode-test-in-mode-at lineno input expected mode fill-col point-fn
+    (fillcode-test-in-mode-at input expected mode fill-col point-fn
                               prefix-arg)))
 
-(defun fillcode-test-in-mode-at (lineno input expected mode
+(defun fillcode-test-in-mode-at (input expected mode
                                  &optional fill-col point-fn prefix-arg)
   ; add a statement *after* the current one so the mode's beginning- and
   ; end-of statement functions work
+  (message "Running test in mode %s" mode)
   (let* ((input (concat input "\nbar;"))
          (expected (if (not expected) input
                      ; trim leading newlines
@@ -117,7 +76,7 @@
                             (string-replace expected ";\\|{\\|}" "")))))
       (setq fill-column (if fill-col fill-col 80))
       (fillcode-fill-paragraph prefix-arg)
-      (assert-equal lineno expected (buffer-string) (format "(in %s)" mode)))))
+      (should (equal expected (buffer-string))))))
 
 ; replace all occurrences of regexp in string. returns the result string.
 (defun string-replace (string regexp replacement)
@@ -180,22 +139,22 @@
 ; succeeds only if fillcode returns nil (ie it didn't fill).
 (defun fillcode-test-not-filled (input)
   (if (fillcode-test input input)
-      (fail "Expected nil, but returned non-nil")))
+      (ert-fail "Expected nil, but returned non-nil")))
 
 
 ; test cases
-(deftest no-function-to-fill
+(ert-deftest no-function-to-fill ()
   (fillcode-test ";")
   (fillcode-test ");")
   (fillcode-test "foo;")
   (fillcode-test "foo);"))
 
-(deftest no-args
+(ert-deftest no-args ()
   (fillcode-test "();")
   (fillcode-test "foo();")
   (fillcode-test "foo(\n);" "foo();"))
 
-(deftest paren-whitespace
+(ert-deftest paren-whitespace ()
   (fillcode-test "foo( );" "foo();")
   (fillcode-test "foo(bar );" "foo(bar);")
   (fillcode-test "foo( bar);" "foo(bar);")
@@ -211,25 +170,25 @@
   (fillcode-test "foo{bar};" "foo{bar};")
   (fillcode-test "foo {bar};" "foo {bar};"))
 
-(deftest comma-whitespace
+(ert-deftest comma-whitespace ()
   (fillcode-test "foo(bar,baz);" "foo(bar, baz);")
   (fillcode-test "foo(bar,  baz);" "foo(bar, baz);")
   (fillcode-test "foo(bar , baz);" "foo(bar, baz);")
   (fillcode-test "foo(bar  ,  baz);" "foo(bar, baz);"))
 
-(deftest paren-newlines
+(ert-deftest paren-newlines ()
   (fillcode-test "foo(bar);" "foo(bar);")
   (fillcode-test "foo(bar\n  );" "foo(bar);")
   (fillcode-test "foo(\n  bar);" "foo(bar);")
   (fillcode-test "foo(\n  bar\n  );" "foo(bar);"))
 
-(deftest comma-newlines
+(ert-deftest comma-newlines ()
   (fillcode-test "foo(bar,\n  baz);" "foo(bar, baz);")
   (fillcode-test "foo(bar\n  ,baz);" "foo(bar, baz);")
   (fillcode-test "foo(\n  bar,baz\n  );" "foo(bar, baz);")
   (fillcode-test "foo(\n  bar\n  ,\n  baz\n  );" "foo(bar, baz);"))
 
-(deftest operator-whitespace
+(ert-deftest operator-whitespace ()
   (fillcode-test "foo(bar==baz);" "foo(bar == baz);")
   (fillcode-test "foo(bar +baz);" "foo(bar + baz);")
   (fillcode-test "foo(bar  -  baz);" "foo(bar - baz);")
@@ -243,7 +202,7 @@
   (fillcode-test "foo <<bar<<baz;" "foo << bar << baz;")
   (fillcode-test "foo << bar << baz;" "foo << bar << baz;"))
 
-(deftest no-whitespace-around-single-equals-operator
+(ert-deftest no-whitespace-around-single-equals-operator ()
   (fillcode-test "foo(bar=1);")
   (fillcode-test "foo(bar='x');")
   (fillcode-test "foo(bar=\"x\");")
@@ -254,7 +213,7 @@ foo(bar=1,
 foo(bar='x',
     baz='y');" 11))
 
-(deftest classes
+(ert-deftest classes ()
   (fillcode-test "class foo {};")
   (fillcode-test "class foo {\n};")
   (fillcode-test "class foo {\nbar();\n};")
@@ -269,7 +228,7 @@ foo(bar='x',
 ;;   (fillcode-test "class foo {\n  bar(  );\n};" "class foo {\n  bar();\n};")
 )
 
-(deftest blank-lines
+(ert-deftest blank-lines ()
   ; shouldn't fill across blank lines
   (fillcode-test "foo(\n\n);")
   (fillcode-test "foo(\n\n  bar, baz);")
@@ -282,7 +241,7 @@ foo(bar='x',
   (fillcode-test "foo(bar,\n\n  baz);" nil 9)
   (fillcode-test "foo(\n  bar, baz\n\n  );" "foo(bar, baz\n\n  );" 9))
 
-(deftest indentation
+(ert-deftest indentation ()
   ; indentation at the beginning of the line should be preserved
   (fillcode-test "foo();")
   (fillcode-test " foo();")
@@ -296,7 +255,7 @@ foo(bar='x',
         baz,
         baj);" 13))
 
-(deftest simple-fill
+(ert-deftest simple-fill ()
   (fillcode-test "foo(bar, baz);" "
 foo(bar,
     baz);" 10)
@@ -357,12 +316,12 @@ foofoofoo(bar,
     bazbaz +
     bajbaj);" 12))
 
-(deftest start-token
+(ert-deftest start-token ()
   "Filling should only start at tokens in `fillcode-start-tokens'."
  (fillcode-test "template <typename xyz>\nfoo(bar);"))
 
 
-(deftest multiple-identifiers-between-commas
+(ert-deftest multiple-identifiers-between-commas ()
   (fillcode-test "foo(bar baz, baj baf);" "
 foo(bar baz,
     baj baf);" 18)
@@ -371,7 +330,7 @@ foo(bar baz,
 foo(bar baz baj,
     baf bat bap);" 22))
 
-(deftest nested
+(ert-deftest nested ()
   (fillcode-test "foo(x(y, z));" "foo(x(y, z));")
   (fillcode-test "foo( x ( y ,z ));" "foo(x (y, z));")
   (fillcode-test "foo( x ( y,z ) ,a( b ,c ));" "foo(x (y, z), a(b, c));")
@@ -411,7 +370,7 @@ foo(barbarbar,
 foo(barbarbar, baz(x),
     baf);" 23))
 
-(deftest arithmetic-operators
+(ert-deftest arithmetic-operators ()
   ; these are ok as is
   (fillcode-test "foo(bar + baz);" nil 16)
   (fillcode-test "foo(bar - baz);" nil 16)
@@ -457,7 +416,7 @@ foo(bar +
 foo(bar +
     baz);" 10))
 
-(deftest minus-sign
+(ert-deftest minus-sign ()
   ; the minus sign is tricky. when it's used to indicate a negative scalar, it
   ; *shouldn't* be normalized.
   (fillcode-test "foo(-bar);")
@@ -468,7 +427,7 @@ foo(bar +
   (fillcode-test "foo(bar,-baz);" "foo(bar, -baz);")
   (fillcode-test "foo(bar,-3);" "foo(bar, -3);"))
 
-(deftest templates
+(ert-deftest templates ()
   ; same with templates, less than and greater than shouldn't be normalized
   (fillcode-test "template <class A> qwert<A>;")
   (fillcode-test "template <class A, class B> qwert<A, B>;")
@@ -480,7 +439,7 @@ foo(bar +
                  "template <class A, class B> qwert<A, B>;"))
 
 
-(deftest multiple-parenthesized-expressions
+(ert-deftest multiple-parenthesized-expressions ()
   ;; if there are multiple top-level parenthetic expressions, we should fill
   ;; all of them, not just the first
   (fillcode-test "foo(bar) foo(baz,baj);" "foo(bar) foo(baz, baj);")
@@ -507,7 +466,7 @@ foo(bar(),
     baz(baj),
     x);" 13))
 
-(deftest non-fill-points
+(ert-deftest non-fill-points ()
   ;; make sure that tokens aren't normalized or filled at other special tokens
   (fillcode-test "foo(bar.baz);"  "foo(bar.baz);"  9)
   (fillcode-test "foo(bar_baz);"  "foo(bar_baz);"  9)
@@ -527,7 +486,7 @@ foo(bar(),
   (fillcode-test "foo(bar&baz);"  "foo(bar&baz);"  9)
   (fillcode-test-in-mode "foo(bar#baz);" "foo(bar#baz);"  'c++-mode 9))
 
-(deftest literals
+(ert-deftest literals ()
   ;; string literals and comments should be kept intact and treated as single,
   ;; unbreakable tokens, not normalized or filled inside
   (fillcode-test "foo(\"bar,baz\");")
@@ -598,7 +557,7 @@ foo(\"baz,\" +
 
 ;; if there's a prefix argument, fill at the first parenthesis. fill at other
 ;; fill points only as needed.
-(deftest prefix-argument
+(ert-deftest prefix-argument ()
   (fillcode-test "foofoo(bar);" "
 foofoo(
     bar);" 80 t)
@@ -638,7 +597,7 @@ public static void foo(
 
 ;; test that fillcode obeys the `fillcode-before-fill-points' list, and fills
 ;; *before* those fill points, not after.
-(deftest before-fill-points
+(ert-deftest before-fill-points ()
   (dolist (mode '(c++-mode java-mode))
     (fillcode-test-in-mode "foo_foo() << bar;" "foo_foo()
     << bar;" mode 13)
@@ -654,7 +613,7 @@ foo() << \"bar\"
       << \"baz\";" mode 18)))
 
 ;; test that fillcode fills conditionals in if/else if statements
-(deftest if-else-if
+(ert-deftest if-else-if ()
   (dolist (mode '(c++-mode java-mode))
     (fillcode-test-in-mode "if (foo) {" "if (foo) {" mode)
     (fillcode-test-in-mode "if ( foo )  { " "if (foo) {" mode)
@@ -686,7 +645,7 @@ foo() << \"bar\"
                           end (fillcode-end-of-statement))
             ))))))
 
-(deftest statement-boundaries
+(ert-deftest statement-boundaries ()
   ;; note that (point-min) is 1
   (test-boundaries "foo();\nbar();" 1 7)
   (test-boundaries "foo();\nbar();" 8 14)
@@ -711,7 +670,7 @@ foo() << \"bar\"
   ; open parens after fill points shouldn't trip us up
   (fillcode-test "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)"))
 
-(deftest subexpression-affinity
+(ert-deftest subexpression-affinity ()
   ; don't fill inside a subexpression if it would fit on one line
   (dolist (i '(15 16 17 18))
     (fillcode-test-in-mode "foo(bar, x {a, b});" "foo(bar,\n    x {a, b});"
@@ -742,7 +701,7 @@ foo(bar" first "
                                mode 16)))
     (precedence-test-in-mode (cdr fill-points) modes)))  ; recursive step
 
-(deftest fill-point-hierarchy
+(ert-deftest fill-point-hierarchy ()
   (let ((ordered-fill-points '("," " &&" " ==" " +" " &")))
     (precedence-test-in-mode ordered-fill-points '(python-mode))
     (precedence-test-in-mode (cons ";" ordered-fill-points)
