@@ -3,8 +3,7 @@
 # to make the tar.gz package:
 #
 # ln -s . fillcode
-# tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el \
-#   fillcode/elunit/elunit* fillcode/elunit/runtests.sh
+# tar czhf fillcode.tar.gz --exclude .svn fillcode/fillcode*.el
 # rm -f fillcode
 
 x in [asdf]:
