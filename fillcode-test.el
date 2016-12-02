@@ -433,8 +433,13 @@ foo(bar +
   (fillcode-test "template <class A, class B> qwert<A, B>;")
 
   ; ...but some whitespace around them should still be normalized
-  (fillcode-test "template <class   A> qwert< A >;"
-                 "template <class A> qwert< A >;")
+  ;; In Emacs 25, CC-Mode is smarter about angle brackets; it recognizes them
+  ;; as parentheses when they surround template arguments.  Therefore the test
+  ;; below now normalizes whitespace in <A>.  However, this only works in C++,
+  ;; and other languages don’t have such constructs anyway.
+  (fillcode-test-in-mode "template <class   A> qwert< A >;"
+                         "template <class A> qwert<A>;"
+                         'c++-mode)
   (fillcode-test "template <class A,   class B> qwert<A,B>;"
                  "template <class A, class B> qwert<A, B>;"))
 
