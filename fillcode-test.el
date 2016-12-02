@@ -65,7 +65,7 @@
     (with-temp-buffer
       (toggle-mode-clean 'fundamental-mode)
       (toggle-mode-clean mode)
-      (insert-string input) ; *after* setting mode
+      (insert input)        ; *after* setting mode
       (funcall point-fn)    ; *after* inserting input :P
       ; remove semicolons and braces for python. (have to do it here
       ; because point-fn depends on the semicolons.)
@@ -633,7 +633,7 @@ foo() << \"bar\"
                                         ; set up the buffer
       (with-temp-buffer
         (toggle-mode-clean mode)
-        (insert-string contents)        ; *after* setting mode
+        (insert contents)               ; *after* setting mode
                                         ; try at beginning, end, and in between
         (dolist (point (list begin end
                              (+ begin (/ (- end begin) 2))))
