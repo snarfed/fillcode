@@ -1,4 +1,4 @@
-;;; fillcode.el --- Fill (wrap) function calls and expressions in source code
+;;; fillcode.el --- Fill (wrap) function calls and expressions in source code  -*- lexical-binding: t; -*-
 ;;
 ;; Version: 1.0.1
 ;; Author: Ryan Barrett <fillcode@ryanb.org>
