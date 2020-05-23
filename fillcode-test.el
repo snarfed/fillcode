@@ -218,14 +218,16 @@ foo(bar='x',
     baz='y');" 11))
 
 (ert-deftest classes ()
-  (fillcode-test "class foo {};")
-  (fillcode-test "class foo {\n};")
-  (fillcode-test "class foo {\nbar();\n};")
-  (fillcode-test "class foo {\n  bar();\n};")
+  (dolist (mode '(java-mode c++-mode))
+    (ert-info ((symbol-name mode))
+      (fillcode-test-in-mode "class foo {};" nil mode)
+      (fillcode-test-in-mode "class foo {\n};" nil mode)
+      (fillcode-test-in-mode "class foo {\nbar();\n};" nil mode)
+      (fillcode-test-in-mode "class foo {\n  bar();\n};" nil mode)
 
-  (fillcode-test "class foo {\n public:\n  qwert(bar);")
-  (fillcode-test "class foo {\n public:\n  qwert(bar);")
-  (fillcode-test "class foo {\n public:\n  qwert(bar);")
+      (fillcode-test-in-mode "class foo {\n public:\n  qwert(bar);" nil mode)
+      (fillcode-test-in-mode "class foo {\n public:\n  qwert(bar);" nil mode)
+      (fillcode-test-in-mode "class foo {\n public:\n  qwert(bar);" nil mode)))
 
   ;; this should only be tested with point on the bar(  ); line. the
   ;; fillcode-test* methods don't support that yet.
