@@ -95,7 +95,7 @@
 
 ; move point to the first semicolon or open brace in the buffer
 (defun first-semicolon-or-open-brace ()
-  (beginning-of-buffer)
+  (goto-char (point-min))
   (re-search-forward ";\\|{" nil t)
   (end-of-line))
 
