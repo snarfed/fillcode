@@ -119,6 +119,10 @@
 ;;                   (if (functionp 'py-version) "\n    " "\n        "))
   )
 
+(defvar python-mode-hook)  ; defined in python.el
+(defvar perl-mode-hook)  ; defined in perl-mode.el
+(defvar sql-mode-hook)  ; defined in sql.el
+(defvar py-indent-offset)  ; defined in python-mode.el
 
 ; turn on the given major mode, set up so it's appropriate for testing
 ; fillcode: plain vanilla (no hooks), no tabs, basic-offset 2.
