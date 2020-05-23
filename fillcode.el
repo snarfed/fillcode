@@ -190,7 +190,7 @@ Each regexp match must include one character *after* the fill point ends."
   :type '(repeat string)
   :group 'fillcode)
 
-(defun fillcode-fill-paragraph (arg &optional arg2 arg3 arg4)
+(defun fillcode-fill-paragraph (arg &optional _arg2 _arg3 _arg4)
   "Fill code at point if `fillcode-wrapped-fill-function' is nil.
 
 If `fillcode-wrapped-fill-function' is nil, fills code. If it's
