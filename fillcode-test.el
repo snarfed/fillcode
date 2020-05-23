@@ -32,29 +32,29 @@
 ;
 ; if `fill-col' is provided, `fill-column' is set to it. defaults to 80.
 ;
-; if `prefix-arg' is provided, it is passed as the first argument to
+; if `arg' is provided, it is passed as the first argument to
 ; `fill-paragraph-function'.
 ;
 ; returns the value returned from fillcode.
-(defun fillcode-test (input &optional expected fill-col prefix-arg)
+(defun fillcode-test (input &optional expected fill-col arg)
   (dolist (mode '(java-mode c++-mode python-mode))
-    (fillcode-test-in-mode input expected mode fill-col prefix-arg)))
+    (fillcode-test-in-mode input expected mode fill-col arg)))
 
 
 ;; set up the buffer and mode, then run and check fillcode with point at the
 ;; beginning, end, and middle of the first statement
 (defun fillcode-test-in-mode (input expected mode
-                              &optional fill-col prefix-arg)
+                              &optional fill-col arg)
   (dolist (point-fn (list
                      'beginning-of-buffer
                      'first-semicolon-or-open-brace
                      (lambda () (first-semicolon-or-open-brace)
                        (goto-char (max (point-min) (- (point) 4))))))
     (fillcode-test-in-mode-at input expected mode fill-col point-fn
-                              prefix-arg)))
+                              arg)))
 
 (defun fillcode-test-in-mode-at (input expected mode
-                                 &optional fill-col point-fn prefix-arg)
+                                 &optional fill-col point-fn arg)
   ; add a statement *after* the current one so the mode's beginning- and
   ; end-of statement functions work
   (message "Running test in mode %s" mode)
@@ -75,7 +75,7 @@
             (setq expected (normalize-python-indentation
                             (string-replace expected ";\\|{\\|}" "")))))
       (setq fill-column (if fill-col fill-col 80))
-      (fillcode-fill-paragraph prefix-arg)
+      (fillcode-fill-paragraph arg)
       (should (equal expected (buffer-string))))))
 
 ; replace all occurrences of regexp in string. returns the result string.
