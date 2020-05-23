@@ -135,7 +135,7 @@
     (funcall mode))
   (setq indent-tabs-mode nil
         py-indent-offset 4
-        python-indent 4
+        python-indent-offset 4
         c-basic-offset 4)
   (fillcode-mode))
 
