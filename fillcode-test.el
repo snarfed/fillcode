@@ -1,4 +1,4 @@
-;; fillcode-test.el - Unit tests for the fillcode minor mode
+;; fillcode-test.el - Unit tests for the fillcode minor mode  -*- lexical-binding: t; -*-
 ;;
 ;; Fillcode
 ;; https://snarfed.org/fillcode
