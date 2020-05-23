@@ -640,7 +640,7 @@ foo() << \"bar\"
 (defun test-boundaries (contents begin end &optional modes)
   (let ((modes (if modes modes '(python-mode c++-mode java-mode))))
                                         ; try all three modes
-    (dolist (mode)
+    (dolist (mode modes)
                                         ; set up the buffer
       (with-temp-buffer
         (toggle-mode-clean mode)
@@ -650,36 +650,37 @@ foo() << \"bar\"
                              (+ begin (/ (- end begin) 2))))
           (progn
             (goto-char point)
-            (assert-equal 0             ; fake line number
-                          begin (fillcode-beginning-of-statement))
-            (assert-equal 0             ; fake line number
-                          end (fillcode-end-of-statement))
+            (should (eql begin (fillcode-beginning-of-statement)))
+            (should (eql end (fillcode-end-of-statement)))
             ))))))
 
 (ert-deftest statement-boundaries ()
   ;; note that (point-min) is 1
-  (test-boundaries "foo();\nbar();" 1 7)
-  (test-boundaries "foo();\nbar();" 8 14)
+  (test-boundaries "foo();\nbar();" 1 7 '(c++-mode java-mode))
+  (test-boundaries "foo();\nbar();" 8 14 '(c++-mode java-mode))
 
-  (test-boundaries "foo();\nbar( x );" 1 7)
-  (test-boundaries "foo();\nbar( x );" 8 17)
+  (test-boundaries "foo();\nbar( x );" 1 7 '(c++-mode java-mode))
+  (test-boundaries "foo();\nbar( x );" 8 17 '(c++-mode java-mode))
 
-  (test-boundaries "foo(x );\nbar(y);" 1 9)
-  (test-boundaries "foo(x );\nbar(y);" 10 17)
+  (test-boundaries "foo(x );\nbar(y);" 1 9 '(c++-mode java-mode))
+  (test-boundaries "foo(x );\nbar(y);" 10 17 '(c++-mode java-mode))
 
   (test-boundaries "if (qwert) {
 } else if (asdf) {
 }" 1 13 '(c++-mode java-mode))
   (test-boundaries "if (qwert) {
 } else if (asdf) {
-}" 16 32 '(c++-mode java-mode))
+}" 14 32 '(c++-mode java-mode))
 
-  ; point is at the beginning of the buffer, so *only* the first statement
-  ; should be filled
-  (fillcode-test "foo(y);\nbar( x)" "foo(y);\nbar( x)")
+  (dolist (mode '(java-mode c++-mode))
+    (ert-info ((symbol-name mode))
+      ;; point is at the beginning of the buffer, so *only* the first statement
+      ;; should be filled
+      (fillcode-test-in-mode "foo(y);\nbar( x)" "foo(y);\nbar( x)" mode)
 
-  ; open parens after fill points shouldn't trip us up
-  (fillcode-test "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)"))
+      ;; open parens after fill points shouldn't trip us up
+      (fillcode-test-in-mode "foo(x, (y));\nbar( x)" "foo(x, (y));\nbar( x)"
+                             mode))))
 
 (ert-deftest subexpression-affinity ()
   ; don't fill inside a subexpression if it would fit on one line
